@@ -75,8 +75,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: WEB_API_PROXY # API host; Next rewrites forward /api + /socket.io here
-        fromService:
-          type: web
-          name: chatrooms-api
-          property: host
+      # API's public URL — the web middleware proxies /api + /socket.io here.
+      # Pinned explicitly (fromService `host` resolves to an internal hostname
+      # that an https:// proxy can't reach).
+      - key: WEB_API_PROXY
+        value: https://chatrooms-api-bfuv.onrender.com

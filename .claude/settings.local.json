@@ -45,7 +45,10 @@
       "Bash(curl -s -o /dev/null -w \"\" --max-time 3 http://localhost:3010/healthz)",
       "Bash(break)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 10 http://localhost:3010/healthz)",
-      "Bash(curl -s --max-time 30 http://localhost:3010/)"
+      "Bash(curl -s --max-time 30 http://localhost:3010/)",
+      "Bash(curl -s -w \"\\\\n[HTTP %{http_code} in %{time_total}s]\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")",
+      "Bash(curl -s -o /dev/null -w \"health -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/health/live\")",
+      "Bash(curl -s -w '\\\\n[HTTP %{http_code} in %{time_total}s]\\\\n' --max-time 90 https://chatrooms-web.onrender.com/api/v1/prompts?sort=new)"
     ]
   }
 }
