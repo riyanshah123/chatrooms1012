@@ -34,7 +34,8 @@
       "Bash(wc -l 20260719104619_init/migration.sql)",
       "Bash(grep -m1 \"CREATE TABLE\" 20260719104619_init/migration.sql)",
       "Bash(wc -l 0_init/migration.sql)",
-      "Bash(git commit -q -m 'docs: add Render deploy guide *)"
+      "Bash(git commit -q -m 'docs: add Render deploy guide *)",
+      "Bash(git remote *)"
     ]
   }
 }

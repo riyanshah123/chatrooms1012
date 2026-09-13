@@ -38,8 +38,8 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /health/live
-    # Apply schema + seed before the new version goes live.
-    preDeployCommand: npx prisma migrate deploy && npx prisma db seed
+    # Migrations + seeding run from the container's start.sh (free tier does
+    # not support preDeployCommand).
     envVars:
       - key: NODE_ENV
         value: production

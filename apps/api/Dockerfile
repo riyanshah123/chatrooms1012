@@ -52,8 +52,11 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
 
 COPY --from=build --chown=app:app /out .
+# Startup script: migrate + seed-if-empty + launch (see scripts/start.sh).
+COPY --chown=app:app apps/api/scripts/start.sh ./start.sh
+RUN chmod +x ./start.sh
 
 USER app
 EXPOSE 4000
-# Liveness at the process level; k8s probes hit /health/*
-CMD ["node", "dist/main.js"]
+# start.sh applies migrations, seeds on first boot, then runs node dist/main.js
+CMD ["./start.sh"]
