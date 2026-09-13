@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LogOut, MessageSquare, Plus, Search, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
+import { SearchCommand } from "@/components/search/search-command";
 import { ThemeToggle } from "./theme-toggle";
 import { useAuthStore } from "@/stores/auth";
 
@@ -15,9 +15,21 @@ import { useAuthStore } from "@/stores/auth";
  * while the silent session restore is in flight.
  */
 export function Navbar() {
-  const router = useRouter();
   const { status, profile, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // ⌘K / Ctrl-K opens search from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/80 backdrop-blur-xl">
@@ -39,10 +51,22 @@ export function Navbar() {
           Topics
         </Link>
 
+        {/* Desktop: a real-looking search bar; mobile: an icon. Both open the
+            live search overlay. */}
         <button
-          onClick={() => router.push("/search")}
+          onClick={() => setSearchOpen(true)}
+          className="hidden h-9 items-center gap-2 rounded-full border border-border bg-surface px-3.5 text-sm text-muted transition hover:border-ink/30 hover:text-ink sm:flex"
+        >
+          <Search size={15} />
+          <span>Search…</span>
+          <kbd className="ml-2 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted">
+            ⌘K
+          </kbd>
+        </button>
+        <button
+          onClick={() => setSearchOpen(true)}
           aria-label="Search"
-          className="flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink"
+          className="flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink sm:hidden"
         >
           <Search size={18} />
         </button>
@@ -106,6 +130,8 @@ export function Navbar() {
           <div className="h-10 w-24 animate-pulse rounded-full bg-surface-2" />
         )}
       </nav>
+
+      <SearchCommand open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

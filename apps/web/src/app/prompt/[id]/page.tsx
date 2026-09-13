@@ -6,6 +6,9 @@ import type { PublicProfile, Visibility } from "@chatrooms/contracts";
 import { Navbar } from "@/components/layout/navbar";
 import { Avatar } from "@/components/ui/avatar";
 
+// Render at request time (the API isn't reachable during the build).
+export const dynamic = "force-dynamic";
+
 interface PromptDetail {
   id: string;
   title: string;

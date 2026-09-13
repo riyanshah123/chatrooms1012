@@ -6,6 +6,9 @@ import { TrendingTopics, type TopicCardData } from "@/components/feed/trending-t
 
 export const metadata: Metadata = { title: "Topics" };
 
+// Render at request time (the API isn't reachable during the build).
+export const dynamic = "force-dynamic";
+
 interface CategoryChip {
   id: string;
   slug: string;

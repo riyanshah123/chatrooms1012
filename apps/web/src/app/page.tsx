@@ -23,6 +23,9 @@ interface PlatformStats {
 
 const ZERO_STATS: PlatformStats = { activeRooms: 0, topics: 0, messagesToday: 0, users: 0 };
 
+// Render at request time (the API isn't reachable during the build).
+export const dynamic = "force-dynamic";
+
 /**
  * Landing page — TopicTalk-style: centered hero (badge → gradient headline →
  * subtext → CTA → live stat cards), then the endless prompt feed and
