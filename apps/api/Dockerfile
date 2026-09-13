@@ -26,7 +26,10 @@ RUN pnpm install --no-frozen-lockfile
 FROM deps AS build
 COPY packages/contracts packages/contracts
 COPY apps/api apps/api
-RUN cd apps/api \
+# Build the shared contracts package to dist first — the API type-checks and
+# requires it at runtime from packages/contracts/dist.
+RUN pnpm --filter @chatrooms/contracts build \
+ && cd apps/api \
  && pnpm prisma generate \
  && pnpm build
 # Self-contained production bundle (prod deps only, workspace links resolved)
