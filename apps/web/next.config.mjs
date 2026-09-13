@@ -26,19 +26,8 @@ const nextConfig = {
   // Standalone output → minimal Docker image (Step 16).
   output: "standalone",
   poweredByHeader: false,
-  // Optional same-origin proxy: when WEB_API_PROXY is set (e.g. local dev or
-  // sharing via a single tunnel), Next forwards /api and /socket.io to the
-  // API so the whole app is one origin. Unset in prod (nginx handles routing).
-  rewrites: async () => {
-    const raw = process.env.WEB_API_PROXY;
-    if (!raw) return [];
-    // Accept a full URL or a bare host (Render blueprint gives a hostname).
-    const target = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
-    return [
-      { source: "/api/:path*", destination: `${target}/api/:path*` },
-      { source: "/socket.io/:path*", destination: `${target}/socket.io/:path*` },
-    ];
-  },
+  // Same-origin API proxy is handled at runtime in src/middleware.ts (Next's
+  // next.config rewrites are baked at build time, before WEB_API_PROXY is known).
   headers: async () => [
     {
       source: "/(.*)",

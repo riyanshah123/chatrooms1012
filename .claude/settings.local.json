@@ -41,7 +41,11 @@
       "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe rm *)",
       "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe run *)",
       "Bash(curl -s -o /dev/null -w \"health/live -> HTTP %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/health/live\")",
-      "Bash(curl -s -w \"\\\\nHTTP %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")"
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")",
+      "Bash(curl -s -o /dev/null -w \"\" --max-time 3 http://localhost:3010/healthz)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 10 http://localhost:3010/healthz)",
+      "Bash(curl -s --max-time 30 http://localhost:3010/)"
     ]
   }
 }
