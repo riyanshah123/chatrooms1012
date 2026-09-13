@@ -31,12 +31,25 @@ export const dynamic = "force-dynamic";
  * subtext → CTA → live stat cards), then the endless prompt feed and
  * trending topics. Server-rendered for SEO + instant paint.
  */
+const EMPTY_PAGE = { items: [], nextCursor: null };
+
 export default async function HomePage() {
+  // Resilient SSR: if the API is briefly unreachable (e.g. free-tier cold
+  // start), never hard-crash the page — render the shell with empty data and
+  // let the client-side queries populate it once the API is awake.
   const [feed, trending, categories, topics, stats] = await Promise.all([
-    serverFetch<Paginated<FeedPromptCard>>("/prompts?sort=new", { revalidate: 30 }),
-    serverFetch<{ items: FeedPromptCard[] }>("/prompts/trending", { revalidate: 30 }),
-    serverFetch<{ items: CategoryChip[] }>("/categories", { revalidate: 300 }),
-    serverFetch<Paginated<TopicCardData>>("/topics", { revalidate: 60 }),
+    serverFetch<Paginated<FeedPromptCard>>("/prompts?sort=new", { revalidate: 30 }).catch(
+      () => EMPTY_PAGE as Paginated<FeedPromptCard>,
+    ),
+    serverFetch<{ items: FeedPromptCard[] }>("/prompts/trending", { revalidate: 30 }).catch(
+      () => ({ items: [] }),
+    ),
+    serverFetch<{ items: CategoryChip[] }>("/categories", { revalidate: 300 }).catch(
+      () => ({ items: [] }),
+    ),
+    serverFetch<Paginated<TopicCardData>>("/topics", { revalidate: 60 }).catch(
+      () => EMPTY_PAGE as Paginated<TopicCardData>,
+    ),
     serverFetch<PlatformStats>("/stats", { revalidate: 30 }).catch(() => ZERO_STATS),
   ]);
 

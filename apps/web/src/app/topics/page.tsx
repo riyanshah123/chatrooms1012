@@ -23,9 +23,14 @@ export default async function TopicsPage({
   searchParams: { category?: string };
 }) {
   const qs = searchParams.category ? `?category=${searchParams.category}` : "";
+  // Resilient to a sleeping/cold-starting API — render, let the client hydrate.
   const [topics, categories] = await Promise.all([
-    serverFetch<Paginated<TopicCardData>>(`/topics${qs}`, { revalidate: 60 }),
-    serverFetch<{ items: CategoryChip[] }>("/categories", { revalidate: 300 }),
+    serverFetch<Paginated<TopicCardData>>(`/topics${qs}`, { revalidate: 60 }).catch(
+      () => ({ items: [], nextCursor: null }) as Paginated<TopicCardData>,
+    ),
+    serverFetch<{ items: CategoryChip[] }>("/categories", { revalidate: 300 }).catch(
+      () => ({ items: [] }),
+    ),
   ]);
 
   return (

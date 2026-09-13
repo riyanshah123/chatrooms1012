@@ -39,7 +39,9 @@
       "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe network *)",
       "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe exec *)",
       "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe rm *)",
-      "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe run *)"
+      "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe run *)",
+      "Bash(curl -s -o /dev/null -w \"health/live -> HTTP %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/health/live\")",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")"
     ]
   }
 }
