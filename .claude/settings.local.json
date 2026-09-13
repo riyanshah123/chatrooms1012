@@ -35,7 +35,11 @@
       "Bash(grep -m1 \"CREATE TABLE\" 20260719104619_init/migration.sql)",
       "Bash(wc -l 0_init/migration.sql)",
       "Bash(git commit -q -m 'docs: add Render deploy guide *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe network *)",
+      "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe exec *)",
+      "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe rm *)",
+      "Bash(/c/Users/Riyan/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe run *)"
     ]
   }
 }
