@@ -13,7 +13,11 @@ import { RedisService } from "./infra/redis/redis.service";
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
-  const webUrl = config.getOrThrow<string>("WEB_URL");
+  // If WEB_URL isn't set, reflect the request origin (`true`) so the API can
+  // still boot and serve — used in the same-origin proxied topology where CORS
+  // isn't the security boundary anyway.
+  const webUrl = config.get<string>("WEB_URL");
+  const corsOrigin: string | boolean = webUrl ?? true;
 
   // Behind Nginx/ALB — trust X-Forwarded-* so rate limiting and logs see
   // real client IPs.
@@ -31,7 +35,7 @@ async function bootstrap(): Promise<void> {
   // cookie-authenticated; the sole cookie-authed route (/auth/refresh) is
   // protected by SameSite=strict + this origin allowlist.
   app.enableCors({
-    origin: webUrl,
+    origin: corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
   });
@@ -40,7 +44,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Socket.IO through the Redis adapter — realtime events reach every pod.
-  app.useWebSocketAdapter(new RedisIoAdapter(app, app.get(RedisService), webUrl));
+  app.useWebSocketAdapter(new RedisIoAdapter(app, app.get(RedisService), corsOrigin));
 
   // Let k8s finish in-flight requests on SIGTERM before the pod dies.
   app.enableShutdownHooks();

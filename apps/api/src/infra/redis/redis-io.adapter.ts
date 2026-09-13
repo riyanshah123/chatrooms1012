@@ -15,7 +15,7 @@ export class RedisIoAdapter extends IoAdapter {
   constructor(
     app: INestApplication,
     private readonly redis: RedisService,
-    private readonly corsOrigin: string,
+    private readonly corsOrigin: string | boolean,
   ) {
     super(app);
   }

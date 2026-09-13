@@ -48,6 +48,10 @@ FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
+# Prisma's query engine needs OpenSSL at runtime; Alpine doesn't ship it by
+# default, which otherwise crashes the container on first DB call.
+RUN apk add --no-cache openssl libc6-compat
+
 # Non-root: mitigate container-escape blast radius
 RUN addgroup -S app && adduser -S app -G app
 

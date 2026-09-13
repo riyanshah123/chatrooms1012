@@ -10,11 +10,13 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(4000),
   PORT: z.coerce.number().int().positive().optional(),
   // Accepts a full URL (local dev) or a bare host (Render blueprint gives a
-  // hostname) — normalized to https:// so it's a valid CORS origin.
+  // hostname) — normalized to https://. Optional so the API can boot even if
+  // the web URL isn't wired yet (CORS then reflects the request origin).
   WEB_URL: z
     .string()
     .min(1)
-    .transform((v) => (/^https?:\/\//.test(v) ? v : `https://${v}`)),
+    .transform((v) => (/^https?:\/\//.test(v) ? v : `https://${v}`))
+    .optional(),
 
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
