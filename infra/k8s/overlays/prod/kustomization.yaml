@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: chatrooms-prod
+resources:
+  - ../../base
+
+# Base values ARE the production defaults; prod overlay only pins images
+# (CI replaces the tag with the git SHA on deploy: kustomize edit set image).
+images:
+  - name: chatrooms/api
+    newName: ghcr.io/chatrooms101/api
+  - name: chatrooms/web
+    newName: ghcr.io/chatrooms101/web
+  - name: chatrooms/migrate
+    newName: ghcr.io/chatrooms101/migrate

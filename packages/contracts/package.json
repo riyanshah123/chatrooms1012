@@ -1,0 +1,14 @@
+{
+  "name": "@chatrooms/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared API/socket contracts — zero runtime dependencies.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

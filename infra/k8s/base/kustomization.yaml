@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - api.yaml
+  - web.yaml
+  - ingress.yaml
+  - migrate-job.yaml
+
+# Secrets are NOT in git. Create per environment:
+#   kubectl create secret generic chatrooms-secrets \
+#     --from-literal=DATABASE_URL=... \
+#     --from-literal=JWT_ACCESS_SECRET=... \
+#     --from-literal=JWT_REFRESH_SECRET=... \
+#     --from-literal=GOOGLE_CLIENT_ID=... \
+#     --from-literal=GOOGLE_CLIENT_SECRET=... \
+#     --from-literal=S3_ACCESS_KEY=... --from-literal=S3_SECRET_KEY=...
+# (Prod: prefer External Secrets Operator → AWS Secrets Manager.)
+
+images:
+  - name: chatrooms/api
+    newTag: latest
+  - name: chatrooms/web
+    newTag: latest
+  - name: chatrooms/migrate
+    newTag: latest

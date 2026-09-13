@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Render Blueprint — one-click provision of the whole stack:
+#   Postgres · Redis · NestJS API · Next.js web (same-origin proxy to the API).
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. Render Dashboard → New → Blueprint → pick the repo → Apply.
+# Render reads this file and creates all four resources, wiring the env vars
+# between them automatically (DB/Redis URLs, JWT secrets, cross-service hosts).
+#
+# Notes:
+#  • Free Postgres is deleted ~30 days after creation — fine for a demo, upgrade
+#    to keep it. Free web services sleep after 15 min idle (first hit ~30 s).
+#  • The API applies migrations + seeds demo content on every deploy (idempotent).
+#  • Search runs on the Postgres fallback (no OpenSearch needed); media uploads
+#    are disabled (no S3) — the app is fully usable without either.
+# ─────────────────────────────────────────────────────────────────────────────
+
+databases:
+  - name: chatrooms-db
+    databaseName: chatrooms
+    plan: free
+
+services:
+  # ── Redis (cache · socket adapter · queues · presence) ──────────────────
+  - type: redis
+    name: chatrooms-redis
+    plan: free
+    ipAllowList: [] # reachable only from other Render services
+    maxmemoryPolicy: noeviction
+
+  # ── API (NestJS, Docker) ────────────────────────────────────────────────
+  - type: web
+    name: chatrooms-api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health/live
+    # Apply schema + seed before the new version goes live.
+    preDeployCommand: npx prisma migrate deploy && npx prisma db seed
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chatrooms-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: chatrooms-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true # Render generates a strong secret
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: WEB_URL # the web app's host — used for CORS (code adds https://)
+        fromService:
+          type: web
+          name: chatrooms-web
+          property: host
+
+  # ── Web (Next.js, Docker) — proxies /api + /socket.io to the API so the
+  #     browser sees one origin (cookies work, no CORS) ─────────────────────
+  - type: web
+    name: chatrooms-web
+    runtime: docker
+    dockerfilePath: apps/web/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WEB_API_PROXY # API host; Next rewrites forward /api + /socket.io here
+        fromService:
+          type: web
+          name: chatrooms-api
+          property: host

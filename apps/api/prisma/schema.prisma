@@ -1,0 +1,486 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Chatrooms101 — Prisma schema
+//
+// Design rules applied throughout:
+//  • Public payloads only ever reference AnonymousProfile — never User.
+//    User (real identity) is joined exclusively by auth + admin code paths.
+//  • Every feed/list query is cursor-paginated on (createdAt, id); each such
+//    surface has a matching composite index so pagination is a pure index scan.
+//  • Volatile counters (online users, queue position, typing, presence) live
+//    in Redis. Postgres holds durable counters (messageCount, memberCount)
+//    that workers roll up — the feed never runs COUNT(*).
+//  • Soft-delete for user content (Message.deletedAt) so replies/reports keep
+//    referential integrity; hard-delete only via retention jobs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═════════════════════════════ ENUMS ═══════════════════════════════════════
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED // temporarily blocked by moderation
+  BANNED    // permanent
+  DELETED   // account closed; row kept for integrity, PII scrubbed
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum RoomType {
+  PROMPT // created from a user prompt; archivable
+  TOPIC  // permanent room attached to a curated topic
+}
+
+enum RoomStatus {
+  ACTIVE
+  ARCHIVED // prompt rooms after long inactivity
+  CLOSED   // closed by moderation
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE // joinable only via direct link
+}
+
+enum ParticipantRole {
+  OWNER     // prompt creator
+  MODERATOR // granted by owner/admin
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  GIF
+  SYSTEM // "BlueWolf21 joined", pin notices — rendered inline, no author UI
+}
+
+enum ReactionEmoji {
+  LIKE      // 👍
+  LOVE      // ❤️
+  LAUGH     // 😂
+  WOW       // 😮
+  SAD       // 😢
+  ANGRY     // 😡
+  FIRE      // 🔥
+  THINKING  // 🤔
+}
+
+enum ReportTargetType {
+  MESSAGE
+  PROFILE
+  PROMPT
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  VIOLENCE
+  SEXUAL_CONTENT
+  MISINFORMATION
+  DOXXING // attempts to expose real identity — high priority here
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum NotificationType {
+  QUEUE_ADMITTED   // your turn — you've been let into the room
+  REPLY            // someone replied to your message
+  REACTION         // someone reacted to your message
+  MENTION
+  ROOM_ACTIVITY    // burst of activity in a bookmarked/created room
+  MODERATION       // warning, mute, kick, ban notices
+  SYSTEM
+}
+
+enum QueueStatus {
+  WAITING
+  ADMITTED  // popped from queue; holds a seat until confirmed or expired
+  EXPIRED   // didn't confirm within the grace window
+  CANCELLED // user left the queue
+}
+
+// ═════════════════════════════ IDENTITY ════════════════════════════════════
+
+/// Real identity. NEVER exposed by public endpoints — auth & admin only.
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String? // null for Google-only accounts
+  googleId     String?      @unique
+  provider     AuthProvider @default(EMAIL)
+  emailVerified Boolean     @default(false)
+  role         UserRole     @default(USER)
+  status       UserStatus   @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  lastLoginAt  DateTime?
+
+  profile       AnonymousProfile? // created during onboarding, then required by the app
+  refreshTokens RefreshToken[]
+
+  @@index([status])
+  @@map("users")
+}
+
+/// Rotating refresh tokens — stored hashed so a DB leak can't mint sessions.
+/// Rotation: each refresh revokes the old row and links its replacement,
+/// letting us detect reuse of a stolen token (revoked + reused ⇒ kill family).
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @unique
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime  @default(now())
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("TokenRotation", fields: [replacedById], references: [id])
+  replaces   RefreshToken? @relation("TokenRotation")
+
+  @@index([userId, expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// The only identity the rest of the system knows. 1:1 with User.
+model AnonymousProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  username      String   @unique // display form, e.g. "BlueWolf21"
+  usernameLower String   @unique // lowercase for case-insensitive uniqueness/search
+  avatarUrl     String? // S3 key of generated/uploaded avatar
+  bio           String?  @db.VarChar(280)
+  reputation    Int      @default(0) // earned via activity, upvoted messages
+  roomsCreated  Int      @default(0) // denormalized, rolled up by worker
+  roomsJoined   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompts        Prompt[]
+  participants   Participant[]
+  messages       Message[]
+  reactions      Reaction[]
+  queueEntries   WaitingQueueEntry[]
+  bookmarks      Bookmark[]
+  favorites      Favorite[]
+  notifications  Notification[]
+  reportsFiled   Report[]           @relation("ReportsFiled")
+  reportsAgainst Report[]           @relation("ReportsAgainst")
+  mutesReceived  RoomMute[]         @relation("MutesReceived")
+  mutesIssued    RoomMute[]         @relation("MutesIssued")
+
+  @@index([reputation(sort: Desc)]) // leaderboards / search ranking boost
+  @@map("anonymous_profiles")
+}
+
+// ═════════════════════════════ TAXONOMY ════════════════════════════════════
+
+/// Curated categories (Sports, Movies, …). Seeded; admin-extendable.
+model Category {
+  id        String   @id @default(cuid())
+  slug      String   @unique // "sports", "tv-shows"
+  name      String // "Sports", "TV Shows"
+  icon      String? // emoji or icon key for chips
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  topics  Topic[]
+  prompts Prompt[]
+
+  @@index([isActive, sortOrder])
+  @@map("categories")
+}
+
+/// Curated major topics ("FIFA World Cup 2026", "Marvel"). Each owns exactly
+/// one permanent chatroom, created alongside it.
+model Topic {
+  id          String   @id @default(cuid())
+  categoryId  String
+  slug        String   @unique
+  title       String
+  description String?  @db.VarChar(500)
+  imageUrl    String?
+  isTrending  Boolean  @default(false) // toggled by trending-score worker
+  trendScore  Float    @default(0)     // decayed activity score
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category  Category   @relation(fields: [categoryId], references: [id])
+  chatroom  Chatroom?  // 1:1, created in the same transaction as the topic
+  favorites Favorite[]
+
+  @@index([categoryId, trendScore(sort: Desc)]) // "trending in Sports"
+  @@index([isTrending, trendScore(sort: Desc)]) // global trending strip
+  @@map("topics")
+}
+
+/// User-created discussion prompt. Creating one atomically creates its room.
+model Prompt {
+  id           String     @id @default(cuid())
+  creatorId    String // AnonymousProfile.id — the only creator identity stored
+  categoryId   String
+  title        String     @db.VarChar(200)
+  description  String?    @db.VarChar(1000)
+  tags         String[]   @default([]) // free-form, lowercased on write
+  visibility   Visibility @default(PUBLIC)
+  maxUsers     Int        @default(10) // clamped to 2..10 by the API
+  // Durable rollups (Redis is live source; worker syncs here for cold reads)
+  messageCount Int        @default(0)
+  memberCount  Int        @default(0)
+  trendScore   Float      @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  creator   AnonymousProfile @relation(fields: [creatorId], references: [id])
+  category  Category         @relation(fields: [categoryId], references: [id])
+  chatroom  Chatroom?
+  bookmarks Bookmark[]
+  reports   Report[]
+
+  // Feed cursor: WHERE (createdAt, id) < (cursor) ORDER BY createdAt DESC, id DESC
+  @@index([visibility, createdAt(sort: Desc), id(sort: Desc)]) // main feed
+  @@index([categoryId, createdAt(sort: Desc), id(sort: Desc)]) // filtered feed
+  @@index([creatorId, createdAt(sort: Desc)])                  // profile page
+  @@index([trendScore(sort: Desc)])                            // hot ranking
+  @@map("prompts")
+}
+
+// ═════════════════════════════ ROOMS & MEMBERSHIP ══════════════════════════
+
+/// A live room. Exactly one of promptId/topicId is set (checked at service
+/// layer + DB uniqueness). Capacity admission is enforced atomically in Redis;
+/// Participant rows are the durable record written after admission.
+model Chatroom {
+  id        String     @id @default(cuid())
+  type      RoomType
+  status    RoomStatus @default(ACTIVE)
+  promptId  String?    @unique
+  topicId   String?    @unique
+  capacity  Int        @default(10)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  prompt       Prompt?             @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  topic        Topic?              @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  participants Participant[]
+  messages     Message[]
+  queue        WaitingQueueEntry[]
+  mutes        RoomMute[]
+
+  @@index([status, type])
+  @@map("chatrooms")
+}
+
+/// Membership. A row per (room, profile); leaving sets leftAt instead of
+/// deleting, preserving history and enabling "rooms joined" stats. Rejoining
+/// clears leftAt on the same row.
+model Participant {
+  id                String          @id @default(cuid())
+  chatroomId        String
+  profileId         String
+  role              ParticipantRole @default(MEMBER)
+  joinedAt          DateTime        @default(now())
+  leftAt            DateTime?
+  // Unread count = messages in room with (createdAt,id) > lastRead pointer;
+  // computed with the room's message index, no per-message read receipts.
+  lastReadMessageId String?
+  lastReadAt        DateTime?
+
+  chatroom Chatroom         @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+  profile  AnonymousProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([chatroomId, profileId])
+  @@index([profileId, leftAt])   // "my active rooms"
+  @@index([chatroomId, leftAt])  // current members of a room
+  @@map("participants")
+}
+
+/// Waiting queue — durable mirror of the Redis sorted set (source of truth
+/// for ordering). Kept in Postgres so queues survive Redis failover and so
+/// users can see their queue history.
+model WaitingQueueEntry {
+  id         String      @id @default(cuid())
+  chatroomId String
+  profileId  String
+  status     QueueStatus @default(WAITING)
+  enqueuedAt DateTime    @default(now())
+  admittedAt DateTime?
+  resolvedAt DateTime? // when EXPIRED / CANCELLED / seat confirmed
+
+  chatroom Chatroom         @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+  profile  AnonymousProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([chatroomId, profileId, status]) // one live entry per user per room
+  @@index([chatroomId, status, enqueuedAt]) // FIFO pop + position display
+  @@map("waiting_queue_entries")
+}
+
+/// Moderation mute — room-scoped, time-boxed. Enforced in the socket gateway
+/// (mirrored to a Redis TTL key for O(1) checks on every message).
+model RoomMute {
+  id         String   @id @default(cuid())
+  chatroomId String
+  profileId  String // who is muted
+  issuedById String // owner/moderator/admin who muted
+  reason     String?  @db.VarChar(280)
+  mutedUntil DateTime
+  createdAt  DateTime @default(now())
+
+  chatroom Chatroom         @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+  profile  AnonymousProfile @relation("MutesReceived", fields: [profileId], references: [id], onDelete: Cascade)
+  issuedBy AnonymousProfile @relation("MutesIssued", fields: [issuedById], references: [id])
+
+  @@index([chatroomId, profileId, mutedUntil])
+  @@map("room_mutes")
+}
+
+// ═════════════════════════════ MESSAGES ════════════════════════════════════
+
+model Message {
+  id         String      @id @default(cuid())
+  chatroomId String
+  authorId   String? // null only for SYSTEM messages
+  type       MessageType @default(TEXT)
+  content    String      @db.VarChar(2000) // sanitized server-side (XSS)
+  gifUrl     String? // validated GIF provider URL when type = GIF
+  replyToId  String?
+  isPinned   Boolean     @default(false)
+  pinnedAt   DateTime?
+  pinnedById String?
+  // Moderation: hiddenAt = auto-hidden (spam/profanity score) or mod action;
+  // deletedAt = author/mod delete. Soft — replies keep pointing here and
+  // render "message deleted".
+  hiddenAt   DateTime?
+  deletedAt  DateTime?
+  editedAt   DateTime?
+  createdAt  DateTime    @default(now())
+
+  chatroom Chatroom          @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+  author   AnonymousProfile? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  replyTo  Message?          @relation("Thread", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies  Message[]         @relation("Thread")
+  reactions Reaction[]
+  reports  Report[]
+
+  // History scroll cursor (newest-first keyset pagination)
+  @@index([chatroomId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([chatroomId, isPinned]) // pinned bar
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+/// One reaction per (message, profile, emoji). Toggling off deletes the row.
+model Reaction {
+  id        String        @id @default(cuid())
+  messageId String
+  profileId String
+  emoji     ReactionEmoji
+  createdAt DateTime      @default(now())
+
+  message Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  profile AnonymousProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, profileId, emoji])
+  @@index([messageId]) // aggregate counts per message
+  @@map("reactions")
+}
+
+// ═════════════════════════════ SAFETY & ENGAGEMENT ═════════════════════════
+
+model Report {
+  id              String           @id @default(cuid())
+  reporterId      String
+  targetType      ReportTargetType
+  messageId       String? // set when targetType = MESSAGE
+  targetProfileId String? // set when targetType = PROFILE (also denormalized for MESSAGE)
+  promptId        String? // set when targetType = PROMPT
+  reason          ReportReason
+  details         String?          @db.VarChar(1000)
+  status          ReportStatus     @default(PENDING)
+  resolution      String?          @db.VarChar(1000) // admin note
+  resolvedById    String? // User.id of admin — intentionally not a profile
+  createdAt       DateTime         @default(now())
+  resolvedAt      DateTime?
+
+  reporter      AnonymousProfile  @relation("ReportsFiled", fields: [reporterId], references: [id])
+  targetProfile AnonymousProfile? @relation("ReportsAgainst", fields: [targetProfileId], references: [id])
+  message       Message?          @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  prompt        Prompt?           @relation(fields: [promptId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt]) // admin dashboard queue
+  @@index([targetProfileId])   // repeat-offender lookups
+  @@map("reports")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  profileId String
+  type      NotificationType
+  // Small denormalized payload the UI renders without extra fetches:
+  // { roomId?, roomTitle?, messageId?, actorUsername?, snippet? }
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  profile AnonymousProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, readAt, createdAt(sort: Desc)]) // unread badge + list
+  @@map("notifications")
+}
+
+/// Saved prompts ("read later").
+model Bookmark {
+  id        String   @id @default(cuid())
+  profileId String
+  promptId  String
+  createdAt DateTime @default(now())
+
+  profile AnonymousProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  prompt  Prompt           @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, promptId])
+  @@index([profileId, createdAt(sort: Desc)])
+  @@map("bookmarks")
+}
+
+/// Favorite topics — shown on the profile, used to personalize the feed.
+model Favorite {
+  id        String   @id @default(cuid())
+  profileId String
+  topicId   String
+  createdAt DateTime @default(now())
+
+  profile AnonymousProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  topic   Topic            @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, topicId])
+  @@index([profileId])
+  @@map("favorites")
+}

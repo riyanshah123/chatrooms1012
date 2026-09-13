@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:topic-chatter-room--riyandshah3.replit.app)",
+      "mcp__claude-in-chrome__list_connected_browsers",
+      "Bash(timeout 150 npx --prefix apps/web tsc -p apps/web/tsconfig.json --noEmit)",
+      "Bash(netstat -ano)",
+      "PowerShell(Get-Command pnpm -ErrorAction SilentlyContinue)",
+      "PowerShell(node -v)",
+      "PowerShell(corepack pnpm --filter api prisma db seed 2>&1)",
+      "PowerShell(corepack pnpm --filter api exec tsx flush-cache.ts)",
+      "Bash(curl -s -o /tmp/home.html -w \"HTTP %{http_code} in %{time_total}s\\\\n\" --max-time 90 http://localhost:3000/)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"localhost:4000/api/v1/prompts?sort=new -> HTTP %{http_code}\\\\n\" --max-time 15 \"http://localhost:4000/api/v1/prompts?sort=new\")",
+      "Bash(curl -s -o /dev/null -w \"health/live -> %{http_code}\\\\n\" --max-time 10 http://localhost:4000/health/live)",
+      "Bash(curl -s -o /dev/null -w \"127.0.0.1 health/live -> %{http_code}\\\\n\" --max-time 10 http://127.0.0.1:4000/health/live)",
+      "Bash(curl -s -o /dev/null -w \"3000 proxy trending -> %{http_code}\\\\n\" --max-time 15 http://localhost:3000/api/v1/prompts/trending)",
+      "Bash(curl -s -o /dev/null -w \"web\\(3000\\) -> %{http_code}\\\\n\" --max-time 30 http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"api\\(4000\\) health -> %{http_code}\\\\n\" --max-time 10 http://localhost:4000/health/live)",
+      "Bash(curl -s -o /tmp/tun.html -w 'tunnel home -> HTTP %{http_code} in %{time_total}s\\\\n' --max-time 45 https://seek-looks-endangered-surgeon.trycloudflare.com/)",
+      "Bash(curl -s -o /dev/null -w 'tunnel API \\(/api/v1/prompts/trending\\) -> %{http_code}\\\\n' --max-time 30 https://seek-looks-endangered-surgeon.trycloudflare.com/api/v1/prompts/trending)",
+      "Bash(curl -s -o /tmp/tun.html -w 'tunnel home -> HTTP %{http_code} in %{time_total}s\\\\n' --max-time 60 https://seek-looks-endangered-surgeon.trycloudflare.com/)",
+      "Bash(grep -v \"^$\")",
+      "Bash(curl -s -o /tmp/lt.html -w 'tunnel -> HTTP %{http_code} in %{time_total}s\\\\n' --max-time 60 -H 'User-Agent: Mozilla/5.0' https://clean-trams-scream.loca.lt/)",
+      "Bash(curl -s --max-time 10 https://loca.lt/mytunnelpassword)",
+      "Bash(curl -s --max-time 10 https://api.ipify.org)",
+      "Bash(curl -s -o /dev/null -w 'warm  -> %{http_code}\\\\n' --max-time 90 https://floppy-showers-touring-sustained.trycloudflare.com/)",
+      "Bash(curl -s -o /tmp/cf.html -w 'home  -> HTTP %{http_code} in %{time_total}s\\\\n' --max-time 60 https://floppy-showers-touring-sustained.trycloudflare.com/)",
+      "Bash(curl -s -o /dev/null -w 'api   -> %{http_code}\\\\n' --max-time 30 https://floppy-showers-touring-sustained.trycloudflare.com/api/v1/prompts/trending)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git symbolic-ref *)",
+      "Bash(git add *)",
+      "Bash(wc -l 20260719104619_init/migration.sql)",
+      "Bash(grep -m1 \"CREATE TABLE\" 20260719104619_init/migration.sql)",
+      "Bash(wc -l 0_init/migration.sql)"
+    ]
+  }
+}

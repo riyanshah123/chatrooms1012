@@ -1,0 +1,63 @@
+# Two Ingresses (ingress-nginx), because Socket.IO needs annotations the
+# rest of the site must not have:
+#  - long read timeouts (idle WebSockets stay open)
+#  - cookie session affinity — ONLY for the HTTP long-polling fallback
+#    handshake; WebSocket traffic is pod-agnostic via the Redis adapter.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chatrooms-socketio
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "cr_sticky"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [chatrooms101.com]
+      secretName: chatrooms-tls
+  rules:
+    - host: chatrooms101.com
+      http:
+        paths:
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service: { name: api, port: { number: 4000 } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chatrooms-main
+  annotations:
+    # Per-IP edge limit; the strict auth brute-force limits live in the
+    # app's ThrottlerGuard (5 signup / 10 login per minute) — custom
+    # limit_req zones would need a controller-level http-snippet.
+    nginx.ingress.kubernetes.io/limit-rps: "30"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [chatrooms101.com]
+      secretName: chatrooms-tls
+  rules:
+    - host: chatrooms101.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: api, port: { number: 4000 } }
+          - path: /health
+            pathType: Prefix
+            backend:
+              service: { name: api, port: { number: 4000 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: web, port: { number: 3000 } }

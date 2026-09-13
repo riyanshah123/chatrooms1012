@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.git
+.env
+.env.*
+!.env.example
+**/*.log
+coverage
+docs
+infra/k8s
+infra/aws

@@ -1,0 +1,25 @@
+# Pre-deploy migration Job (apps/api/Dockerfile `migrate` stage).
+# Run before each rollout:
+#   kubectl delete job db-migrate --ignore-not-found && kubectl apply -k .
+# CI runs it as a pipeline step and waits:
+#   kubectl wait --for=condition=complete job/db-migrate --timeout=300s
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels: { app: db-migrate }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: chatrooms/migrate
+          envFrom:
+            - secretRef: { name: chatrooms-secrets } # DATABASE_URL
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }

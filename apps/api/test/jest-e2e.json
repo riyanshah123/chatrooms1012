@@ -1,0 +1,11 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "rootDir": ".",
+  "testRegex": ".e2e-spec.ts$",
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/../src/$1",
+    "^@chatrooms/contracts$": "<rootDir>/../../../packages/contracts/src"
+  },
+  "testTimeout": 30000
+}

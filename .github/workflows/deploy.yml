@@ -1,0 +1,118 @@
+# CI/CD: verify → build+push images (ECR) → migrate DB → deploy to EKS.
+# Pushes to main deploy staging; tags v* deploy production.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  AWS_REGION: us-east-1
+  ECR: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  # ── Verify: types + tests on every push/PR ──────────────────────────────
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter api exec prisma generate
+      - run: pnpm lint     # tsc --noEmit across the workspace
+      - run: pnpm --filter api test -- --ci
+
+  # ── Build & push images (skipped for PRs) ───────────────────────────────
+  build:
+    if: github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC → AWS, no long-lived keys
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - { name: api, dockerfile: apps/api/Dockerfile, target: runtime }
+          - { name: migrate, dockerfile: apps/api/Dockerfile, target: migrate }
+          - { name: web, dockerfile: apps/web/Dockerfile, target: "" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/chatrooms-ci
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: |
+            ${{ env.ECR }}/chatrooms/${{ matrix.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=/api/v1
+            NEXT_PUBLIC_SOCKET_URL=
+
+  # ── Deploy: migrate first, then roll out ────────────────────────────────
+  deploy:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: ${{ startsWith(github.ref, 'refs/tags/') && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/chatrooms-ci
+          aws-region: ${{ env.AWS_REGION }}
+      - run: aws eks update-kubeconfig --name chatrooms --region ${{ env.AWS_REGION }}
+
+      - name: Select overlay
+        id: overlay
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "path=infra/k8s/overlays/prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=infra/k8s/overlays/staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pin images to this commit
+        working-directory: ${{ steps.overlay.outputs.path }}
+        run: |
+          kustomize edit set image \
+            chatrooms/api=${ECR}/chatrooms/api:${GITHUB_SHA} \
+            chatrooms/web=${ECR}/chatrooms/web:${GITHUB_SHA} \
+            chatrooms/migrate=${ECR}/chatrooms/migrate:${GITHUB_SHA}
+
+      - name: Render manifests
+        run: |
+          NS=$(grep '^namespace:' ${{ steps.overlay.outputs.path }}/kustomization.yaml | awk '{print $2}')
+          echo "NS=$NS" >> "$GITHUB_ENV"
+          kustomize build ${{ steps.overlay.outputs.path }} > /tmp/all.yaml
+
+      - name: Run DB migrations (before rollout)
+        run: |
+          # Jobs are immutable — replace the old run, then wait it out.
+          kubectl -n "$NS" delete job db-migrate --ignore-not-found
+          yq 'select(.kind == "Job" and .metadata.name == "db-migrate")' /tmp/all.yaml \
+            | kubectl -n "$NS" apply -f -
+          kubectl -n "$NS" wait --for=condition=complete job/db-migrate --timeout=300s
+
+      - name: Deploy
+        run: |
+          yq 'select(.kind != "Job")' /tmp/all.yaml | kubectl apply -f -
+          kubectl -n "$NS" rollout status deploy/api --timeout=300s
+          kubectl -n "$NS" rollout status deploy/web --timeout=300s

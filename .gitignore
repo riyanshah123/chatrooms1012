@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+.turbo/
+out/
+
+# env — never commit real secrets
+.env
+.env.*
+!.env.example
+
+# prisma
+apps/api/prisma/*.db
+
+# logs & misc
+*.log
+.DS_Store
+coverage/

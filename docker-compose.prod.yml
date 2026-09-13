@@ -1,0 +1,113 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Full containerized stack — production-shaped, single host.
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# For real production use Kubernetes (infra/k8s); this file is for staging
+# boxes, demos, and validating the images end-to-end. TLS is left to the
+# host (put certs in ./certs and enable the 443 block in nginx.conf, or run
+# behind a cloud LB).
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.http.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Same-origin through nginx — no CORS in this topology
+        NEXT_PUBLIC_API_URL: /api/v1
+        NEXT_PUBLIC_SOCKET_URL: ""
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://chatrooms:chatrooms@postgres:5432/chatrooms?schema=public
+      REDIS_URL: redis://redis:6379
+      OPENSEARCH_URL: http://opensearch:9200
+      S3_ENDPOINT: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://chatrooms:chatrooms@postgres:5432/chatrooms?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chatrooms
+      POSTGRES_PASSWORD: chatrooms
+      POSTGRES_DB: chatrooms
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatrooms"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - osdata:/usr/share/opensearch/data
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  osdata:
+  miniodata:

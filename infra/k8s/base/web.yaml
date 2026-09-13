@@ -1,0 +1,69 @@
+# ── Web (Next.js SSR): Deployment + Service + HPA + PDB ─────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels: { app: web }
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      containers:
+        - name: web
+          image: chatrooms/web
+          ports:
+            - containerPort: 3000
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { cpu: 750m, memory: 512Mi }
+          livenessProbe:
+            httpGet: { path: /, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      terminationGracePeriodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  selector: { app: web }
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 2
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: web }
