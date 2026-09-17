@@ -4,6 +4,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 import type { Paginated, PublicProfile, Visibility } from "@chatrooms/contracts";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { useCategories } from "@/hooks/use-categories";
 import { useInfiniteFeed } from "@/hooks/use-infinite-feed";
 import { useAuthStore } from "@/stores/auth";
 import { CARD_HEIGHT, PromptCard } from "./prompt-card";
@@ -43,13 +44,15 @@ const GAP = 16;
  */
 export function PromptFeed({
   initialPage,
-  categories,
+  categories: initialCategories,
 }: {
   initialPage: Paginated<FeedPromptCard>;
   categories: CategoryChip[];
 }) {
   const [category, setCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<"new" | "hot">("new");
+  // Fetched client-side (seeded by SSR) so chips appear even if SSR was cold.
+  const categories = useCategories(initialCategories);
 
   // Logged-in users get the personalized "For You" feed; everyone else sees
   // the generic newest feed (which the SSR page already provides).

@@ -8,6 +8,7 @@ import { useState } from "react";
 import type { Paginated } from "@chatrooms/contracts";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCategories } from "@/hooks/use-categories";
 
 export interface TopicCardData {
   id: string;
@@ -36,7 +37,7 @@ interface CategoryChip {
  */
 export function TrendingTopics({
   initialPage,
-  categories,
+  categories: initialCategories,
   initialCategory,
   standalone = false,
 }: {
@@ -46,6 +47,7 @@ export function TrendingTopics({
   standalone?: boolean;
 }) {
   const [category, setCategory] = useState<string | null>(initialCategory ?? null);
+  const categories = useCategories(initialCategories);
 
   const { data, isFetching } = useQuery({
     queryKey: ["topics", category],
@@ -53,7 +55,11 @@ export function TrendingTopics({
       api<Paginated<TopicCardData>>(
         `/topics${category ? `?category=${category}` : ""}`,
       ),
-    initialData: category === (initialCategory ?? null) ? initialPage : undefined,
+    // Don't adopt an empty SSR page as final (API may have been cold) — refetch.
+    initialData:
+      category === (initialCategory ?? null) && initialPage.items.length > 0
+        ? initialPage
+        : undefined,
     staleTime: 60_000,
   });
 

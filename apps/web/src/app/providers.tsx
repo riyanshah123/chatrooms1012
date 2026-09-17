@@ -17,11 +17,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 15_000,
             refetchOnWindowFocus: false,
+            // Retry server/gateway errors persistently — on free hosting the
+            // API cold-starts (~45s) and the proxy returns 502/503 until it's
+            // awake. ~8 attempts with backoff rides that out. 4xx never retries.
             retry: (failureCount, error) => {
-              // Don't retry 4xx — they won't get better.
               const status = (error as { status?: number }).status ?? 0;
-              return status >= 500 && failureCount < 2;
+              return (status >= 500 || status === 0) && failureCount < 8;
             },
+            retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
           },
         },
       }),

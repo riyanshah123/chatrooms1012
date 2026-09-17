@@ -15,7 +15,8 @@ export function TrendingPrompts({ initial }: { initial?: FeedPromptCard[] }) {
   const { data, isLoading } = useQuery({
     queryKey: ["trending-prompts"],
     queryFn: () => api<{ items: FeedPromptCard[] }>("/prompts/trending"),
-    initialData: initial ? { items: initial } : undefined,
+    // Empty SSR (cold API) must not stick — refetch client-side.
+    initialData: initial && initial.length ? { items: initial } : undefined,
     staleTime: 30_000,
   });
 

@@ -34,9 +34,15 @@ export function useInfiniteFeed(opts: {
     },
     initialPageParam: "",
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    // Only the generic (non-personalized) newest view matches the SSR page.
+    // Adopt the SSR page only when it actually has items and matches the
+    // default view — an EMPTY SSR result (API was cold) must not be treated as
+    // final, or the client would never refetch. Empty ⇒ client fetches fresh.
     initialData:
-      opts.initialPage && !opts.personalized && opts.sort === "new" && !opts.category
+      opts.initialPage &&
+      opts.initialPage.items.length > 0 &&
+      !opts.personalized &&
+      opts.sort === "new" &&
+      !opts.category
         ? { pages: [opts.initialPage], pageParams: [""] }
         : undefined,
     staleTime: 30_000,
