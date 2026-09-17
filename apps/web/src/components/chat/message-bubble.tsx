@@ -39,6 +39,9 @@ export function MessageBubble({
   onPin: (messageId: string, pinned: boolean) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Touch devices have no hover, so the action bar would be unreachable.
+  // Tapping a message toggles it; desktop still gets it on hover.
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   if (message.type === "SYSTEM") {
     return <p className="py-2 text-center text-xs text-muted">{message.content}</p>;
@@ -77,7 +80,10 @@ export function MessageBubble({
           </p>
         )}
 
-        <div className="group/msg relative flex items-center gap-2">
+        <div
+          className="group/msg relative flex items-center gap-2"
+          onClick={() => setActionsOpen((v) => !v)}
+        >
           {message.deleted ? (
             <p className="rounded-2xl bg-surface-2 px-4 py-2 text-sm italic text-muted">
               message deleted
@@ -96,7 +102,9 @@ export function MessageBubble({
 
           {/* Hover actions */}
           {!message.deleted && !optimistic && (
-            <div className="hidden items-center gap-0.5 rounded-xl border border-border bg-surface p-0.5 shadow-sm group-hover/msg:flex">
+            <div
+              className={`${actionsOpen ? "flex" : "hidden"} items-center gap-0.5 rounded-xl border border-border bg-surface p-0.5 shadow-sm group-hover/msg:flex`}
+            >
               <IconBtn label="React" onClick={() => setPickerOpen((v) => !v)}>
                 <SmilePlus size={14} />
               </IconBtn>
@@ -127,11 +135,13 @@ export function MessageBubble({
               {REACTION_EMOJIS.map((e) => (
                 <button
                   key={e}
-                  onClick={() => {
+                  onClick={(ev) => {
+                    ev.stopPropagation();
                     onReact(message.id, e);
                     setPickerOpen(false);
+                    setActionsOpen(false);
                   }}
-                  className="rounded-lg p-1 text-lg transition hover:scale-125 hover:bg-surface-2"
+                  className="rounded-lg p-2 text-xl transition hover:scale-125 hover:bg-surface-2 sm:p-1 sm:text-lg"
                 >
                   {REACTION_GLYPHS[e]}
                 </button>
@@ -177,8 +187,12 @@ function IconBtn({
     <button
       aria-label={label}
       title={label}
-      onClick={onClick}
-      className={`rounded-lg p-1.5 transition hover:bg-surface-2 ${
+      onClick={(e) => {
+        e.stopPropagation(); // don't re-toggle the action bar
+        onClick();
+      }}
+      // p-2.5 keeps the tap target comfortable on touch screens
+      className={`rounded-lg p-2.5 transition hover:bg-surface-2 sm:p-1.5 ${
         danger ? "text-muted hover:text-danger" : "text-muted hover:text-ink"
       }`}
     >

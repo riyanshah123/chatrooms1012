@@ -54,7 +54,11 @@ export function Composer({
   };
 
   return (
-    <div className="border-t border-border/70 p-3 sm:p-4">
+    <div
+      className="border-t border-border/70 p-3 sm:p-4"
+      // keeps the input clear of the iPhone home indicator
+      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+    >
       {replyTo && (
         <div className="mb-2 flex items-center justify-between rounded-lg border-l-2 border-accent bg-surface-2 px-3 py-1.5 text-xs">
           <span className="truncate text-muted">
@@ -71,7 +75,7 @@ export function Composer({
           value={gifUrl}
           onChange={(e) => setGifUrl(e.target.value)}
           placeholder="Paste a Giphy/Tenor media URL…"
-          className="input mb-2 text-sm"
+          className="input mb-2 text-base sm:text-sm"
         />
       )}
 
@@ -104,7 +108,7 @@ export function Composer({
               send();
             }
           }}
-          className="max-h-[120px] flex-1 resize-none bg-transparent py-2 text-[15px] outline-none placeholder:text-muted/70"
+          className="max-h-[120px] flex-1 resize-none bg-transparent py-2 text-base outline-none placeholder:text-muted/70 sm:text-[15px]"
         />
 
         <button

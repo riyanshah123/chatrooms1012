@@ -88,7 +88,7 @@ export function SearchCommand({ open, onClose }: { open: boolean; onClose: () =>
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search prompts, topics, @people…"
-                className="w-full bg-transparent text-[15px] outline-none placeholder:text-muted/70"
+                className="w-full bg-transparent text-base outline-none placeholder:text-muted/70 sm:text-[15px]"
               />
               {results.isFetching && <Spinner className="size-4" />}
             </div>
