@@ -568,42 +568,50 @@ function deriveDescription(title: string): string {
 
   if (/\bvs\b/.test(lower) || / or .*(who|better|greater|best)/.test(lower)) {
     return pick([
-      "The debate that never really settles. Which side actually wins — and why?",
-      "Two camps, one room. Pick a side and defend it to nine strangers.",
-      "No fence-sitting here — make your case and hold the line.",
+      "Everyone has a side on this one. Which one are you on?",
+      "Pick your side and back it up.",
+      "This argument never really dies. Come settle it.",
+      "Two camps, ten seats. Where do you stand?",
+      "Say your pick and be ready to defend it.",
     ]);
   }
   if (/^(is|are|does|do|will|can|has|have)\b/.test(lower)) {
     return pick([
-      "Strong opinions only. Come make your case and hear the other side.",
-      "People rarely agree on this one. Where do you actually land?",
-      "Jump in and argue it out — ten seats, no filter.",
+      "Strong opinions welcome. Where do you land?",
+      "People never agree on this. Say what you actually think.",
+      "Come argue it out with nine strangers.",
+      "Drop your take and see who pushes back.",
+      "Half the room says yes, half says no. You?",
     ]);
   }
   if (/^should\b/.test(lower)) {
     return pick([
-      "No easy answer here. Convince the room you're right.",
-      "Yes or no — but you'll have to defend it.",
-      "One of those questions with no clean answer. Take a side.",
+      "There is no clean answer here. Make your case.",
+      "Yes or no, and be ready to defend it.",
+      "Convince the room you're right.",
+      "Easy to have an opinion, harder to defend one.",
     ]);
   }
   if (/^(what|which|who|if|when|where)\b/.test(lower)) {
     return pick([
-      "Everyone's got a different answer. Drop yours and see who agrees.",
-      "There's no single right answer, which is what makes it fun.",
-      "Say your pick out loud and defend it against the room.",
+      "Everyone answers this differently. Drop yours.",
+      "No right answer, just strong ones.",
+      "Say your pick out loud and see who agrees.",
+      "Curious what people actually say to this one.",
     ]);
   }
   if (/^(best|greatest|most|worst|the)\b/.test(lower)) {
     return pick([
-      "An impossible pick that always starts a fight. Make yours.",
-      "No correct answer — just strong ones. What's yours?",
-      "Rank it, defend it, and watch the room disagree.",
+      "An impossible pick that always starts a fight.",
+      "Rank it and watch the room disagree.",
+      "No correct answer here, just confident ones.",
+      "Everyone thinks they're right about this.",
     ]);
   }
   return pick([
-    "Settle in and let's get into it — ten strangers, one topic.",
-    "Pull up a seat. This one's going to get opinions moving.",
+    "Pull up a seat and get into it.",
+    "Ten strangers, one topic. Jump in.",
+    "Come say what you actually think.",
   ]);
 }
 

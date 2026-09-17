@@ -11,6 +11,23 @@ import { SearchService } from "@/infra/search/search.service";
 import { TokenService, type AccessPayload } from "./token.service";
 import { isReservedUsername } from "./username.generator";
 
+/**
+ * Argon2id parameters. This is one of the few genuinely CPU heavy things the
+ * API does, so on small instances it decides how many simultaneous signups we
+ * can absorb. These are OWASP's recommended minimum for argon2id (19 MiB,
+ * 2 passes, 1 lane): roughly 3x cheaper than the library defaults while
+ * staying a sound choice for password storage.
+ *
+ * Existing hashes keep working: argon2 stores its parameters in the hash
+ * string, so verify() uses whatever each password was originally hashed with.
+ */
+const PASSWORD_HASH_OPTS = {
+  type: argon2.argon2id,
+  memoryCost: 19456, // KiB
+  timeCost: 2,
+  parallelism: 1,
+} as const;
+
 export interface AuthResult {
   accessToken: string;
   refreshToken: string; // controller moves this into the httpOnly cookie
@@ -46,8 +63,7 @@ export class AuthService {
       data: {
         email,
         provider: "EMAIL",
-        // argon2id defaults (v0.41): 64 MiB memory, t=3 — OWASP-aligned.
-        passwordHash: await argon2.hash(password),
+        passwordHash: await argon2.hash(password, PASSWORD_HASH_OPTS),
       },
     });
     return this.buildAuthResult(user.id, null, user.role as UserRole, meta);

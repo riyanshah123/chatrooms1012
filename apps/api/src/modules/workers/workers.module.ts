@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ChatroomsModule } from "@/modules/chatrooms/chatrooms.module";
 import { CountersService } from "./counters.service";
+import { DailyPromptsService } from "./daily-prompts.service";
 import { SweeperService } from "./sweeper.service";
 import { TrendsService } from "./trends.service";
 
@@ -12,6 +13,6 @@ import { TrendsService } from "./trends.service";
  */
 @Module({
   imports: [ChatroomsModule],
-  providers: [SweeperService, CountersService, TrendsService],
+  providers: [SweeperService, CountersService, TrendsService, DailyPromptsService],
 })
 export class WorkersModule {}

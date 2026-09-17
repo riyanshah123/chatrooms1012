@@ -59,7 +59,9 @@
       "Bash(curl -s --max-time 60 https://chatrooms-web.onrender.com/)",
       "Bash(sed -n '/export async function api/,/^}/p' lib/api.ts)",
       "Bash(sed -n '/async restoreSession/,/^    },/p' stores/auth.ts)",
-      "Bash(python -)"
+      "Bash(python -)",
+      "Bash(curl -s -o /dev/null -w \"web -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-web.onrender.com/healthz)",
+      "Bash(curl -s -o /dev/null -w \"api -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-api-bfuv.onrender.com/health/live)"
     ]
   }
 }

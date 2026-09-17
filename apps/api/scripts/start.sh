@@ -10,13 +10,11 @@ set -e
 echo "→ Applying database migrations..."
 ./node_modules/.bin/prisma migrate deploy
 
-COUNT=$(node -e "const{PrismaClient}=require('@prisma/client');new PrismaClient().prompt.count().then(n=>{console.log(n);process.exit(0)}).catch(()=>{console.log(0);process.exit(0)})")
-if [ "$COUNT" = "0" ]; then
-  echo "→ Empty database — seeding demo content..."
-  ./node_modules/.bin/tsx prisma/seed.ts
-else
-  echo "→ Database already has $COUNT prompts — skipping seed."
-fi
+# Seed is idempotent: it creates missing prompts and refreshes the copy
+# (description/tags/category) on existing ones, so running it every deploy
+# keeps content current without duplicating anything.
+echo "Seeding/refreshing content..."
+./node_modules/.bin/tsx prisma/seed.ts || echo "seed failed (continuing)"
 
 echo "→ Starting API..."
 exec node dist/main.js
