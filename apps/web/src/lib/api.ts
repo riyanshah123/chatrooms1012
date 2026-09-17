@@ -71,6 +71,12 @@ interface RequestOpts {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
+  /**
+   * Skip the silent-refresh-on-401 retry. Required for the refresh call
+   * itself: otherwise a 401 there re-enters the refresh, which returns the
+   * same in-flight promise and deadlocks (session never resolves).
+   */
+  skipAuthRefresh?: boolean;
 }
 
 /** Client-side request with auth + single silent-refresh retry. */
@@ -89,7 +95,7 @@ export async function api<T>(path: string, opts: RequestOpts = {}): Promise<T> {
 
   let res = await doFetch(getToken());
 
-  if (res.status === 401) {
+  if (res.status === 401 && !opts.skipAuthRefresh) {
     const fresh = await refreshToken();
     if (fresh) res = await doFetch(fresh);
   }

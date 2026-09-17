@@ -56,6 +56,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const r = await api<AuthResponse>("/auth/login", {
         method: "POST",
         body: { email, password },
+        skipAuthRefresh: true,
       });
       applySession(r);
       return r;
@@ -65,6 +66,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const r = await api<AuthResponse>("/auth/signup", {
         method: "POST",
         body: { email, password },
+        skipAuthRefresh: true,
       });
       applySession(r);
       return r;
@@ -94,7 +96,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (refreshInFlight) return refreshInFlight;
       refreshInFlight = (async () => {
         try {
-          const r = await api<AuthResponse>("/auth/refresh", { method: "POST" });
+          // skipAuthRefresh: a 401 here must NOT re-enter the refresh flow.
+          const r = await api<AuthResponse>("/auth/refresh", {
+            method: "POST",
+            skipAuthRefresh: true,
+          });
           applySession(r);
           return r;
         } catch {
