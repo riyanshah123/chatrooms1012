@@ -654,6 +654,27 @@ async function main(): Promise<void> {
     });
   }
 
+  // 2.5 — remove throwaway accounts left behind by load/smoke testing so they
+  // don't inflate the public user count. Deleting the user cascades to its
+  // profile, messages and memberships. Scoped tightly to the test patterns.
+  const throwaway = await prisma.user.findMany({
+    where: {
+      OR: [
+        { email: { endsWith: "@loadtest.local" } },
+        { email: { endsWith: "@example.com" } },
+      ],
+    },
+    select: { id: true, email: true },
+  });
+  const testPattern = /^(lt|ct|test|join|webtest|e2e)[0-9_]/i;
+  const removable = throwaway.filter(
+    (u) => u.email.endsWith("@loadtest.local") || testPattern.test(u.email),
+  );
+  if (removable.length) {
+    await prisma.user.deleteMany({ where: { id: { in: removable.map((u) => u.id) } } });
+    console.log(`Removed ${removable.length} leftover test accounts`);
+  }
+
   // 3 — system account (owns demo prompts; also used for SYSTEM notices)
   const systemUser = await prisma.user.upsert({
     where: { email: "system@chatrooms.local" },

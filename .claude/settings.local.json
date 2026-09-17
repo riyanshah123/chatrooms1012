@@ -61,7 +61,12 @@
       "Bash(sed -n '/async restoreSession/,/^    },/p' stores/auth.ts)",
       "Bash(python -)",
       "Bash(curl -s -o /dev/null -w \"web -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-web.onrender.com/healthz)",
-      "Bash(curl -s -o /dev/null -w \"api -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-api-bfuv.onrender.com/health/live)"
+      "Bash(curl -s -o /dev/null -w \"api -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-api-bfuv.onrender.com/health/live)",
+      "Bash(curl -s -o /dev/null -w \"api -> %{http_code} in %{time_total}s\\\\n\" --max-time 120 https://chatrooms-api-bfuv.onrender.com/health/live)",
+      "Bash(export NODE_PATH=\"C:/Users/Riyan/Desktop/chatrooms101/node_modules/.pnpm/socket.io-client@4.8.1/node_modules:C:/Users/Riyan/Desktop/chatrooms101/node_modules\")",
+      "Bash(export NODE_PATH=\"C:/Users/Riyan/Desktop/chatrooms101/node_modules/.pnpm/socket.io-client@4.8.3/node_modules\")",
+      "Bash(node loadtest.js https://chatrooms-api-bfuv.onrender.com 200)",
+      "Bash(node chattest.js https://chatrooms-api-bfuv.onrender.com 15)"
     ]
   }
 }

@@ -5,7 +5,8 @@ import type { Paginated } from "@chatrooms/contracts";
 import { Navbar } from "@/components/layout/navbar";
 import { PromptFeed, type FeedPromptCard } from "@/components/feed/prompt-feed";
 import { TrendingPrompts } from "@/components/feed/trending-prompts";
-import { TrendingTopics, type TopicCardData } from "@/components/feed/trending-topics";
+import { TopicsStrip } from "@/components/feed/topics-strip";
+import type { TopicCardData } from "@/components/feed/trending-topics";
 
 interface CategoryChip {
   id: string;
@@ -80,8 +81,8 @@ export default async function HomePage() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg text-muted">
-            Join intimate, capped chatrooms about topics you actually care
-            about. Ten seats, real conversations — and always anonymous.
+            Ten seats, real conversations, and nobody knows who you are.
+            Pick something you actually care about and jump in.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -89,10 +90,10 @@ export default async function HomePage() {
               <Plus size={19} strokeWidth={2.5} />
               Start a Discussion
             </Link>
-            <a href="#feed" className="btn-ghost h-12 rounded-full px-7 text-base">
-              Explore Topics
+            <Link href="/topics" className="btn-ghost h-12 rounded-full px-7 text-base">
+              Browse Topics
               <Compass size={18} />
-            </a>
+            </Link>
           </div>
 
           {/* Live stats */}
@@ -107,8 +108,12 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {/* Topic rooms. Deliberately above the feed: the feed scrolls forever,
+            so anything below it never gets seen. */}
+        <TopicsStrip initial={topics.items} />
+
         {/* Trending prompts — highest traffic right now */}
-        <section className="pt-4">
+        <section className="pt-12">
           <div className="mb-5 flex items-center gap-2">
             <span className="text-2xl">🔥</span>
             <div>
@@ -125,7 +130,7 @@ export default async function HomePage() {
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight">For You</h2>
               <p className="mt-1 text-muted">
-                Picked from the topics you follow — plus the latest everywhere.
+                Picked from the topics you follow, plus whatever is new everywhere else.
               </p>
             </div>
             <Link
@@ -138,9 +143,6 @@ export default async function HomePage() {
           </div>
           <PromptFeed initialPage={feed} categories={categories.items} />
         </div>
-
-        {/* Trending topics */}
-        <TrendingTopics initialPage={topics} categories={categories.items} />
       </main>
 
       {/* Mobile floating "create" button — the navbar/header CTAs are hidden
@@ -154,7 +156,7 @@ export default async function HomePage() {
       </Link>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted">
-        chatrooms101 — real talk, real people.
+        chatrooms101. Real talk, real people.
       </footer>
     </>
   );
