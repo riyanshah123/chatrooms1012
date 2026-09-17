@@ -6,8 +6,10 @@ import { NextResponse, type NextRequest } from "next/server";
  * so we proxy /api and /socket.io here in middleware, which reads env at
  * request time. This keeps the browser on one origin (cookies work, no CORS).
  */
+// Only REST is proxied. Socket.IO connects straight to the API (see
+// lib/socket.ts) because middleware cannot proxy WebSocket upgrades.
 export const config = {
-  matcher: ["/api/:path*", "/socket.io/:path*"],
+  matcher: ["/api/:path*"],
 };
 
 export function middleware(req: NextRequest) {

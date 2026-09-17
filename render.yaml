@@ -56,11 +56,11 @@ services:
         generateValue: true # Render generates a strong secret
       - key: JWT_REFRESH_SECRET
         generateValue: true
-      - key: WEB_URL # the web app's host — used for CORS (code adds https://)
-        fromService:
-          type: web
-          name: chatrooms-web
-          property: host
+      # Public web origin — used for CORS (REST + Socket.IO). Must be the real
+      # external URL: the socket connects cross-origin directly to this API,
+      # and fromService `host` yields an internal hostname that never matches.
+      - key: WEB_URL
+        value: https://chatrooms-web.onrender.com
 
   # ── Web (Next.js, Docker) — proxies /api + /socket.io to the API so the
   #     browser sees one origin (cookies work, no CORS) ─────────────────────

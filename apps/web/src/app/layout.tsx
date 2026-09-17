@@ -39,10 +39,19 @@ const themeScript = `
 `;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Socket.IO must connect DIRECTLY to the API: WebSocket upgrades cannot be
+  // proxied through Next middleware. Resolved here (server, at request time)
+  // so it works on any host without a rebuild.
+  const socketUrl = (process.env.WEB_API_PROXY ?? "").replace(/\/$/, "");
+  const socketScript = `window.__CR_SOCKET_URL__=${JSON.stringify(
+    socketUrl && !/^https?:\/\//.test(socketUrl) ? `https://${socketUrl}` : socketUrl,
+  )};`;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: socketScript }} />
       </head>
       <body className={`${inter.variable} ${poppins.variable} font-sans min-h-dvh`}>
         <Providers>{children}</Providers>
