@@ -150,6 +150,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  /** Rooms sitting at (or above) capacity, i.e. nobody else can get in. */
+  async fullRoomIds(capacity = 10, limit = 30): Promise<string[]> {
+    return this.client.zrevrangebyscore(
+      RedisService.ACTIVE_ROOMS,
+      "+inf",
+      capacity,
+      "LIMIT",
+      0,
+      limit,
+    );
+  }
+
   roomKeys(roomId: string) {
     return {
       members: `cr:room:${roomId}:members`,

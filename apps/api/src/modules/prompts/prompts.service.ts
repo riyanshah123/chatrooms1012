@@ -57,6 +57,9 @@ const BOOST_HOURS = 48; // how long a new prompt stays pinned
 const MAX_BOOSTED_ON_PAGE = 15; // cap the boosted block on page 1
 const BOOST_ZSET = "cr:boost"; // member = promptId, score = expiry epoch-ms
 
+/** A freshly opened room stays at the top of Trending for this long. */
+const TRENDING_FRESH_MS = 15 * 60_000;
+
 @Injectable()
 export class PromptsService {
   constructor(
@@ -206,28 +209,83 @@ export class PromptsService {
    * message activity (kept current by CountersService) and decays over time,
    * so this surfaces what's busy *now*, not all-time. Cached 30 s.
    */
-  async trending(limit = 9): Promise<PromptCard[]> {
+  async trending(limit = 12): Promise<PromptCard[]> {
     const cacheKey = `cr:cache:trending:${limit}`;
     const hit = await this.redis.getJSON<PromptCard[]>(cacheKey);
     if (hit) return hit;
 
-    const rows = await this.prisma.prompt.findMany({
-      where: { visibility: "PUBLIC", chatroom: { status: "ACTIVE" } },
-      orderBy: [
-        { trendScore: "desc" },
-        { messageCount: "desc" },
-        { createdAt: "desc" },
-      ],
-      take: limit,
-      include: {
-        category: { select: { slug: true, name: true, icon: true } },
-        creator: { select: { id: true, username: true, avatarUrl: true, reputation: true } },
-        chatroom: { select: { id: true } },
-      },
-    });
-    const cards = await this.hydrateCards(rows);
-    await this.redis.setJSON(cacheKey, cards, 30);
-    return cards;
+    // Trending means "people want to talk about this right now", so it is
+    // ordered by who is actually in the room:
+    //   1. rooms opened in the last few minutes, newest first
+    //   2. rooms with people in them, most people first
+    //   3. rooms that are full, pushed to the bottom (you can't get in)
+    const [liveIds, fullIds] = await Promise.all([
+      this.redis.liveRoomIds(1, 9, 40),
+      this.redis.fullRoomIds(10, 20),
+    ]);
+
+    const chatroomIds = [...liveIds, ...fullIds];
+    let cards: PromptCard[] = [];
+    if (chatroomIds.length) {
+      const rows = await this.prisma.prompt.findMany({
+        where: {
+          visibility: "PUBLIC",
+          chatroom: { status: "ACTIVE", id: { in: chatroomIds } },
+        },
+        include: {
+          category: { select: { slug: true, name: true, icon: true } },
+          creator: { select: { id: true, username: true, avatarUrl: true, reputation: true } },
+          chatroom: { select: { id: true } },
+        },
+      });
+      cards = await this.hydrateCards(rows);
+    }
+
+    const now = Date.now();
+    const age = (c: PromptCard) => now - new Date(c.createdAt).getTime();
+    const byPeopleThenNew = (a: PromptCard, b: PromptCard) =>
+      b.onlineCount - a.onlineCount || age(a) - age(b);
+
+    const full = cards.filter((c) => c.onlineCount >= c.maxUsers).sort(byPeopleThenNew);
+    const occupied = cards.filter((c) => c.onlineCount > 0 && c.onlineCount < c.maxUsers);
+    const justOpened = occupied
+      .filter((c) => age(c) < TRENDING_FRESH_MS)
+      .sort((a, b) => age(a) - age(b));
+    const rest = occupied
+      .filter((c) => age(c) >= TRENDING_FRESH_MS)
+      .sort(byPeopleThenNew);
+
+    let ordered = [...justOpened, ...rest, ...full];
+
+    // Quiet platform: pad with the most talked-about rooms so the section is
+    // never empty.
+    if (ordered.length < limit) {
+      const have = new Set(ordered.map((c) => c.id));
+      const padRows = await this.prisma.prompt.findMany({
+        where: {
+          visibility: "PUBLIC",
+          chatroom: { status: "ACTIVE" },
+          ...(have.size && { id: { notIn: [...have] } }),
+        },
+        orderBy: [
+          { trendScore: "desc" },
+          { messageCount: "desc" },
+          { createdAt: "desc" },
+        ],
+        take: limit - ordered.length,
+        include: {
+          category: { select: { slug: true, name: true, icon: true } },
+          creator: { select: { id: true, username: true, avatarUrl: true, reputation: true } },
+          chatroom: { select: { id: true } },
+        },
+      });
+      ordered = [...ordered, ...(await this.hydrateCards(padRows))];
+    }
+
+    const result = ordered.slice(0, limit);
+    // Short TTL: this reorders as people come and go.
+    await this.redis.setJSON(cacheKey, result, 15);
+    return result;
   }
 
   async byId(id: string): Promise<PromptCard> {

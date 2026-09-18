@@ -74,7 +74,9 @@
       "Bash(curl -s -o /dev/null -w \"web        -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-web.onrender.com/)",
       "Bash(curl -s -o /dev/null -w \"api health -> %{http_code} in %{time_total}s\\\\n\" --max-time 150 https://chatrooms-api-bfuv.onrender.com/health/live)",
       "Bash(curl -s -o /dev/null -w \"web -> %{http_code} in %{time_total}s\\\\n\" --max-time 150 https://chatrooms-web.onrender.com/healthz)",
-      "Bash(curl -s -o /dev/null -w \"feed -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")"
+      "Bash(curl -s -o /dev/null -w \"feed -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")",
+      "Bash(node -e \"console.log\\('total TOPICS entries:', \\(require\\('fs'\\).readFileSync\\('seed.ts','utf8'\\).match\\(/\\\\{ category: \\\\\"[a-z-]+\\\\\", slug:/g\\)||[]\\).length\\)\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

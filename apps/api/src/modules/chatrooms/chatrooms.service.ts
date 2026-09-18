@@ -180,6 +180,14 @@ export class ChatroomsService {
 
     await this.persistJoin(roomId, profileId);
     await this.broadcastJoin(roomId, profileId);
+
+    // If that join filled the room, open a fresh copy of the same discussion
+    // so the next person still has somewhere to go. Clearly people want to
+    // talk about it.
+    const seatedNow = await this.redis.client.scard(this.redis.roomKeys(roomId).members);
+    if (seatedNow >= room.capacity) {
+      void this.spawnOverflowRoom(roomId).catch(() => undefined);
+    }
     return { joined: true };
   }
 
@@ -308,6 +316,78 @@ export class ChatroomsService {
       mutedUntil: mutedUntil.toISOString(),
     } satisfies UserMutedPayload);
     return { mutedUntil: mutedUntil.toISOString() };
+  }
+
+  /**
+   * A room hit capacity. Clone its prompt into a brand new room so the topic
+   * stays joinable. Does nothing if a copy with free seats already exists, so
+   * this can't spiral into endless duplicates.
+   */
+  private async spawnOverflowRoom(fullRoomId: string): Promise<void> {
+    const source = await this.prisma.chatroom.findUnique({
+      where: { id: fullRoomId },
+      select: {
+        capacity: true,
+        prompt: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            tags: true,
+            categoryId: true,
+            creatorId: true,
+            maxUsers: true,
+            visibility: true,
+          },
+        },
+      },
+    });
+    const prompt = source?.prompt;
+    if (!prompt || prompt.visibility !== "PUBLIC") return; // topic rooms don't clone
+
+    // Any sibling with the same title that still has room? Then we're covered.
+    const siblings = await this.prisma.prompt.findMany({
+      where: { title: prompt.title, visibility: "PUBLIC", chatroom: { status: "ACTIVE" } },
+      select: { chatroom: { select: { id: true } }, maxUsers: true },
+      take: 20,
+    });
+    for (const sib of siblings) {
+      const id = sib.chatroom?.id;
+      if (!id || id === fullRoomId) continue;
+      const count = await this.redis.client.scard(this.redis.roomKeys(id).members);
+      if (count < sib.maxUsers) return; // a copy is already open
+    }
+
+    const clone = await this.prisma.prompt.create({
+      data: {
+        title: prompt.title,
+        description: prompt.description,
+        tags: prompt.tags,
+        categoryId: prompt.categoryId,
+        creatorId: prompt.creatorId,
+        maxUsers: prompt.maxUsers,
+        visibility: "PUBLIC",
+        chatroom: { create: { type: "PROMPT", capacity: prompt.maxUsers } },
+      },
+      include: {
+        category: { select: { name: true } },
+        creator: { select: { username: true } },
+        chatroom: { select: { id: true } },
+      },
+    });
+
+    // Announce it the same way a hand-made room is announced.
+    this.events.toEveryone(SocketEvents.ROOM_CREATED, {
+      promptId: clone.id,
+      chatroomId: clone.chatroom!.id,
+      title: clone.title,
+      categoryName: clone.category.name,
+      creatorUsername: clone.creator.username,
+    });
+
+    const keys = await this.redis.client.keys("cr:cache:feed:*");
+    if (keys.length) await this.redis.client.del(...keys);
+    await this.redis.client.del("cr:cache:trending:12");
   }
 
   // ── Internals ──────────────────────────────────────────────────────────
