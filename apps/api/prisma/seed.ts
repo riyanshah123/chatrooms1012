@@ -698,7 +698,19 @@ const TOP_PROMPTS: Array<{ category: string; title: string; description: string 
       "Samsung has been at this for years. Apple shows up late and everyone forgets. Who actually wins this one?",
   },
 
-  // Reframed: the serious debate under a difficult case
+  // Criminal responsibility vs severe mental illness
+  {
+    category: "politics",
+    title: "Is Lindsay Clancy guilty?",
+    description:
+      "She does not dispute what happened. The defence is severe postpartum psychosis, so the whole case turns on whether she was criminally responsible for it. Where do you land?",
+  },
+  {
+    category: "politics",
+    title: "Is the insanity defence applied fairly?",
+    description:
+      "Some see it as a loophole, others as the only humane part of the system. Which is it in practice?",
+  },
   {
     category: "health",
     title: "Should postpartum psychosis change how the law judges a parent?",
