@@ -613,6 +613,13 @@ const EXTRA_PROMPTS: Record<string, string[]> = {
  * generated banks these carry their own copy and get current timestamps, so
  * they lead "newest" the moment they land.
  */
+/** Prompts pulled from the app: deleted on seed so they don't linger. */
+const RETIRED_PROMPT_TITLES: string[] = [
+  "Should postpartum psychosis change how the law judges a parent?",
+  "Does India take postpartum mental health seriously at all?",
+  "Is the justice system equipped to handle severe mental illness?",
+];
+
 const TOP_PROMPTS: Array<{ category: string; title: string; description: string }> = [
   // Latent / Samay Raina / standup
   {
@@ -698,7 +705,7 @@ const TOP_PROMPTS: Array<{ category: string; title: string; description: string 
       "Samsung has been at this for years. Apple shows up late and everyone forgets. Who actually wins this one?",
   },
 
-  // Criminal responsibility vs severe mental illness
+  // Criminal responsibility and mental illness
   {
     category: "politics",
     title: "Is Lindsay Clancy guilty?",
@@ -710,24 +717,6 @@ const TOP_PROMPTS: Array<{ category: string; title: string; description: string 
     title: "Is the insanity defence applied fairly?",
     description:
       "Some see it as a loophole, others as the only humane part of the system. Which is it in practice?",
-  },
-  {
-    category: "health",
-    title: "Should postpartum psychosis change how the law judges a parent?",
-    description:
-      "Severe postpartum illness is medically real and badly understood. Should it change the verdict, the sentence, both, or neither?",
-  },
-  {
-    category: "health",
-    title: "Does India take postpartum mental health seriously at all?",
-    description:
-      "New mothers get advice on feeding and almost nothing on their own head. What would actually change that?",
-  },
-  {
-    category: "politics",
-    title: "Is the justice system equipped to handle severe mental illness?",
-    description:
-      "Courts have to decide who was in control of themselves. Are they anywhere near able to do that well?",
   },
 ];
 
@@ -991,6 +980,14 @@ async function main(): Promise<void> {
       });
       created++;
     }
+  }
+
+  // Remove retired prompts (cascades to their room and messages).
+  if (RETIRED_PROMPT_TITLES.length) {
+    const gone = await prisma.prompt.deleteMany({
+      where: { title: { in: RETIRED_PROMPT_TITLES }, creatorId: systemProfileId },
+    });
+    if (gone.count) console.log(`Retired ${gone.count} prompts`);
   }
 
   // Hand written prompts, newest first so they lead the feed.
