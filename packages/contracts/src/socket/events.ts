@@ -30,6 +30,7 @@ export const SocketEvents = {
   ROOM_FULL: "room_full",
   WAITING_QUEUE: "waiting_queue", // your position changed
   QUEUE_ADMITTED: "queue_admitted", // your seat is ready — confirm to enter
+  ROOM_CREATED: "room_created", // someone opened a new room (global broadcast)
   ERROR: "socket_error",
 } as const;
 

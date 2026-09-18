@@ -195,7 +195,8 @@ export class ChatroomsService {
       where: { chatroomId: roomId, profileId, leftAt: null },
       data: { leftAt: new Date() },
     });
-    const memberCount = await this.redis.client.scard(this.redis.roomKeys(roomId).members);
+    // Keeps the live-occupancy index in step so the feed can rank this room.
+    const memberCount = await this.redis.syncRoomActivity(roomId);
     this.events.toRoom(roomId, SocketEvents.USER_LEFT, {
       roomId,
       profileId,
@@ -373,7 +374,7 @@ export class ChatroomsService {
         where: { id: profileId },
         select: { id: true, username: true, avatarUrl: true, reputation: true },
       }),
-      this.redis.client.scard(this.redis.roomKeys(roomId).members),
+      this.redis.syncRoomActivity(roomId), // refresh live-occupancy index
     ]);
     if (!profile) return;
     this.events.toRoom(roomId, SocketEvents.USER_JOINED, {

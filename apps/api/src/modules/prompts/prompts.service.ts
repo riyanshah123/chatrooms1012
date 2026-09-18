@@ -1,10 +1,17 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, RoomType } from "@prisma/client";
-import type { Paginated, PublicProfile, Visibility } from "@chatrooms/contracts";
+import {
+  SocketEvents,
+  type Paginated,
+  type PublicProfile,
+  type RoomCreatedPayload,
+  type Visibility,
+} from "@chatrooms/contracts";
 import { decodeCursor, toPage } from "@/common/utils/cursor";
 import { PrismaService } from "@/infra/prisma/prisma.service";
 import { RedisService } from "@/infra/redis/redis.service";
 import { SearchService } from "@/infra/search/search.service";
+import { ChatEventsService } from "@/modules/chat-gateway/chat-events.service";
 import type { CreatePromptDto, FeedQueryDto } from "./dto/prompt.schemas";
 
 /** Feed card — everything the PromptCard component renders. */
@@ -26,6 +33,21 @@ export interface PromptCard {
 
 const PAGE_SIZE = 15;
 
+/**
+ * Stable per-(prompt, viewer) number. Same pair always yields the same value,
+ * different viewers yield different orderings, so two accounts looking at the
+ * same pool of prompts get genuinely different "For You" picks.
+ */
+function hashPair(a: string, b: string): number {
+  let h = 2166136261;
+  const s = `${a}:${b}`;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 // ── Early-growth boost ──────────────────────────────────────────────────────
 // While the platform is young, every newly created discussion is pinned to the
 // top of the feed for a window, so the first cohort actually sees fresh rooms.
@@ -41,6 +63,7 @@ export class PromptsService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly search: SearchService,
+    private readonly events: ChatEventsService,
   ) {}
 
   /**
@@ -66,8 +89,35 @@ export class PromptsService {
 
     // "For You": on page 1, pull recent prompts from the user's preferred
     // categories (favorites + rooms they've joined) into a personalized block.
+    // Rooms that already have people in them but still have a free seat are
+    // the best thing to show anyone: there's a conversation happening AND you
+    // can get in. These float above everything except boosts.
+    let liveIds: string[] = [];
+    if (!cursor) {
+      const chatroomIds = await this.redis.liveRoomIds(1, 9, 12);
+      if (chatroomIds.length) {
+        const live = await this.prisma.prompt.findMany({
+          where: {
+            visibility: "PUBLIC",
+            chatroom: { status: "ACTIVE", id: { in: chatroomIds } },
+            id: { notIn: boostedIds },
+            ...(query.category && { category: { slug: query.category } }),
+          },
+          select: { id: true, chatroom: { select: { id: true } } },
+        });
+        // Preserve Redis ordering (busiest first).
+        const rank = new Map(chatroomIds.map((id, i) => [id, i]));
+        live.sort(
+          (a, b) =>
+            (rank.get(a.chatroom!.id) ?? 99) - (rank.get(b.chatroom!.id) ?? 99),
+        );
+        liveIds = live.map((p) => p.id);
+      }
+    }
+
     let personalizedIds: string[] = [];
     if (personalized && !cursor) {
+      const taken = [...boostedIds, ...liveIds];
       const prefCats = await this.preferredCategoryIds(profileId!);
       if (prefCats.length) {
         const pref = await this.prisma.prompt.findMany({
@@ -75,7 +125,7 @@ export class PromptsService {
             visibility: "PUBLIC",
             chatroom: { status: "ACTIVE" },
             categoryId: { in: prefCats },
-            id: { notIn: boostedIds },
+            id: { notIn: taken },
             ...(query.category && { category: { slug: query.category } }),
           },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -83,10 +133,30 @@ export class PromptsService {
           select: { id: true },
         });
         personalizedIds = pref.map((p) => p.id);
+      } else {
+        // No signals yet (new account). Still give this person their OWN feed:
+        // take a recent window and order it by a hash of prompt+profile, so
+        // every account gets a different but stable set of picks.
+        const recent = await this.prisma.prompt.findMany({
+          where: {
+            visibility: "PUBLIC",
+            chatroom: { status: "ACTIVE" },
+            id: { notIn: taken },
+            ...(query.category && { category: { slug: query.category } }),
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 120,
+          select: { id: true },
+        });
+        personalizedIds = recent
+          .map((p) => ({ id: p.id, k: hashPair(p.id, profileId!) }))
+          .sort((a, b) => a.k - b.k)
+          .slice(0, 9)
+          .map((p) => p.id);
       }
     }
 
-    const excludeIds = [...boostedIds, ...personalizedIds];
+    const excludeIds = [...boostedIds, ...liveIds, ...personalizedIds];
     const where: Prisma.PromptWhereInput = {
       visibility: "PUBLIC",
       chatroom: { status: "ACTIVE" },
@@ -117,11 +187,13 @@ export class PromptsService {
     const page = toPage(rows, PAGE_SIZE, (r) => ({ createdAt: r.createdAt, id: r.id }));
     let items = await this.hydrateCards(page.items);
 
-    // Page-1 blocks: boosted first, then personalized "for you" picks.
+    // Page-1 order: boosted, then live-and-joinable rooms, then this account's
+    // own picks, then the normal stream.
     if (!query.cursor) {
       const boostedCards = await this.cardsByIds(boostedIds, true);
+      const liveCards = await this.cardsByIds(liveIds);
       const personalizedCards = await this.cardsByIds(personalizedIds);
-      items = [...boostedCards, ...personalizedCards, ...items];
+      items = [...boostedCards, ...liveCards, ...personalizedCards, ...items];
     }
 
     const result = { items, nextCursor: page.nextCursor };
@@ -222,6 +294,15 @@ export class PromptsService {
       visibility: prompt.visibility,
       createdAt: prompt.createdAt,
     });
+    // Tell everyone connected that a new room just opened.
+    this.events.toEveryone(SocketEvents.ROOM_CREATED, {
+      promptId: prompt.id,
+      chatroomId: prompt.chatroom!.id,
+      title: prompt.title,
+      categoryName: prompt.category.name,
+      creatorUsername: prompt.creator.username,
+    } satisfies RoomCreatedPayload);
+
     // Early-growth boost: pin this new discussion to the top of the feed for
     // BOOST_HOURS, but only while the platform is still small.
     let boosted = false;

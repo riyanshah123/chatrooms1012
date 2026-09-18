@@ -117,6 +117,39 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   // ── Typed wrappers (ioredis defineCommand attaches methods dynamically) ─
 
+  /**
+   * Live occupancy index: chatroomId -> current member count.
+   * Lets the feed pull "rooms with people in them but not full" in one cheap
+   * range query instead of checking every room's member set.
+   */
+  static readonly ACTIVE_ROOMS = "cr:activerooms";
+
+  /** Recompute a room's entry after anyone joins or leaves. */
+  async syncRoomActivity(roomId: string): Promise<number> {
+    const count = await this.client.scard(this.roomKeys(roomId).members);
+    if (count > 0) {
+      await this.client.zadd(RedisService.ACTIVE_ROOMS, count, roomId);
+    } else {
+      await this.client.zrem(RedisService.ACTIVE_ROOMS, roomId);
+    }
+    return count;
+  }
+
+  /**
+   * Chatroom ids that currently hold between `min` and `max` people, busiest
+   * first. Used to float joinable, already-alive rooms to the top of the feed.
+   */
+  async liveRoomIds(min = 1, max = 9, limit = 12): Promise<string[]> {
+    return this.client.zrevrangebyscore(
+      RedisService.ACTIVE_ROOMS,
+      max,
+      min,
+      "LIMIT",
+      0,
+      limit,
+    );
+  }
+
   roomKeys(roomId: string) {
     return {
       members: `cr:room:${roomId}:members`,

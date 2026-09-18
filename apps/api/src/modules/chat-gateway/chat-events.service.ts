@@ -28,6 +28,11 @@ export class ChatEventsService {
     this.server?.to(`profile:${profileId}`).emit(event, payload);
   }
 
+  /** Everyone currently connected (e.g. "a new room just opened"). */
+  toEveryone(event: SocketEvent, payload: unknown): void {
+    this.server?.emit(event, payload);
+  }
+
   /** Convenience for the most common cross-module emits. */
   events = SocketEvents;
 }

@@ -123,3 +123,12 @@ export interface SocketErrorPayload {
   code: string;
   message: string;
 }
+
+/** Broadcast to everyone when a new discussion room opens. */
+export interface RoomCreatedPayload {
+  promptId: string;
+  chatroomId: string;
+  title: string;
+  categoryName: string;
+  creatorUsername: string;
+}
