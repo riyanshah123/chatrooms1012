@@ -41,6 +41,9 @@ const envSchema = z.object({
   S3_ACCESS_KEY: z.string().optional(), // unset in prod → IAM role creds
   S3_SECRET_KEY: z.string().optional(),
 
+  /** Comma separated emails promoted to ADMIN on seed. */
+  ADMIN_EMAILS: z.string().optional(),
+
   RATE_LIMIT_POINTS: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW: z.coerce.number().int().positive().default(60),
 });

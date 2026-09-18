@@ -8,6 +8,7 @@ import { RolesGuard } from "@/common/guards/roles.guard";
 import { PrismaModule } from "@/infra/prisma/prisma.module";
 import { RedisModule } from "@/infra/redis/redis.module";
 import { SearchInfraModule } from "@/infra/search/search.module";
+import { AnalyticsModule } from "@/modules/admin/analytics.module";
 import { AuthModule } from "@/modules/auth/auth.module";
 import { CategoriesModule } from "@/modules/categories/categories.module";
 import { ChatGatewayModule } from "@/modules/chat-gateway/chat-gateway.module";
@@ -56,6 +57,7 @@ import { WorkersModule } from "@/modules/workers/workers.module";
     RedisModule,
     SearchInfraModule,
     AuthModule,
+    AnalyticsModule,
     ChatGatewayModule,
     CategoriesModule,
     TopicsModule,

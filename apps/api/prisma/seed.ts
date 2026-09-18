@@ -982,6 +982,20 @@ async function main(): Promise<void> {
     }
   }
 
+  // Promote whoever is listed in ADMIN_EMAILS so a real person can open the
+  // analytics dashboard (the seeded system account isn't one you can log into).
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (adminEmails.length) {
+    const promoted = await prisma.user.updateMany({
+      where: { email: { in: adminEmails }, role: { not: "ADMIN" } },
+      data: { role: "ADMIN" },
+    });
+    if (promoted.count) console.log(`Promoted ${promoted.count} admin(s)`);
+  }
+
   // Remove retired prompts (cascades to their room and messages).
   if (RETIRED_PROMPT_TITLES.length) {
     const gone = await prisma.prompt.deleteMany({
