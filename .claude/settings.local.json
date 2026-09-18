@@ -71,7 +71,10 @@
       "Bash(node --max-old-space-size=2048 ceiling.js https://chatrooms-api-bfuv.onrender.com \"300,600,1000,1500,2000\")",
       "Bash(curl -s -o /dev/null -w \"api health -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-api-bfuv.onrender.com/health/live)",
       "Bash(curl -s -o /dev/null -w \"api feed   -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")",
-      "Bash(curl -s -o /dev/null -w \"web        -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-web.onrender.com/)"
+      "Bash(curl -s -o /dev/null -w \"web        -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 https://chatrooms-web.onrender.com/)",
+      "Bash(curl -s -o /dev/null -w \"api health -> %{http_code} in %{time_total}s\\\\n\" --max-time 150 https://chatrooms-api-bfuv.onrender.com/health/live)",
+      "Bash(curl -s -o /dev/null -w \"web -> %{http_code} in %{time_total}s\\\\n\" --max-time 150 https://chatrooms-web.onrender.com/healthz)",
+      "Bash(curl -s -o /dev/null -w \"feed -> %{http_code} in %{time_total}s\\\\n\" --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")"
     ]
   }
 }

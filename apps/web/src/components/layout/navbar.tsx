@@ -4,9 +4,9 @@ import Link from "next/link";
 import { LogOut, MessageSquare, Plus, Search, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
-import { SearchCommand } from "@/components/search/search-command";
 import { ThemeToggle } from "./theme-toggle";
 import { useAuthStore } from "@/stores/auth";
+import { useUIStore } from "@/stores/ui";
 
 /**
  * Sticky navbar (TopicTalk-style): coral chat-bubble logo + wordmark,
@@ -17,14 +17,14 @@ import { useAuthStore } from "@/stores/auth";
 export function Navbar() {
   const { status, profile, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const openSearch = useUIStore((s) => s.openSearch);
 
   // ⌘K / Ctrl-K opens search from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setSearchOpen(true);
+        openSearch();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -54,7 +54,7 @@ export function Navbar() {
         {/* Desktop: a real-looking search bar; mobile: an icon. Both open the
             live search overlay. */}
         <button
-          onClick={() => setSearchOpen(true)}
+          onClick={() => openSearch()}
           className="hidden h-9 items-center gap-2 rounded-full border border-border bg-surface px-3.5 text-sm text-muted transition hover:border-ink/30 hover:text-ink sm:flex"
         >
           <Search size={15} />
@@ -64,7 +64,7 @@ export function Navbar() {
           </kbd>
         </button>
         <button
-          onClick={() => setSearchOpen(true)}
+          onClick={() => openSearch()}
           aria-label="Search"
           className="flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink sm:hidden"
         >
@@ -131,7 +131,6 @@ export function Navbar() {
         )}
       </nav>
 
-      <SearchCommand open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

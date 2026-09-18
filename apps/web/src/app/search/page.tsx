@@ -13,7 +13,7 @@ export default function SearchPage({
   return (
     <>
       <Navbar />
-      <main className="mx-auto w-full max-w-4xl px-4 pb-24 pt-8 sm:px-6">
+      <main className="mx-auto w-full max-w-4xl px-4 pb-28 sm:pb-24 pt-8 sm:px-6">
         <SearchView initialQuery={searchParams.q ?? ""} />
       </main>
     </>

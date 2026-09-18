@@ -47,7 +47,7 @@ export function RoomAlerts() {
     setAlerts((prev) => prev.filter((a) => a.key !== key));
 
   return (
-    <div className="pointer-events-none fixed bottom-5 left-1/2 z-50 flex w-full max-w-sm -translate-x-1/2 flex-col gap-2 px-4 sm:left-auto sm:right-5 sm:translate-x-0">
+    <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 flex w-full max-w-sm -translate-x-1/2 flex-col gap-2 px-4 sm:bottom-5 sm:left-auto sm:right-5 sm:translate-x-0">
       <AnimatePresence initial={false}>
         {alerts.map((a) => (
           <motion.div

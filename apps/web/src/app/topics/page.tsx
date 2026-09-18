@@ -36,7 +36,7 @@ export default async function TopicsPage({
   return (
     <>
       <Navbar />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-28 sm:pb-24 pt-8 sm:px-6">
         <h1 className="font-display text-3xl font-bold">Topics</h1>
         <p className="mt-1 text-muted">
           Permanent rooms for the big conversations — always open.

@@ -56,7 +56,7 @@ export default async function PromptDetailPage({ params }: { params: { id: strin
   return (
     <>
       <Navbar />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-28 sm:pb-24 pt-6 sm:px-6">
         <Link
           href="/"
           className="inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-ink"

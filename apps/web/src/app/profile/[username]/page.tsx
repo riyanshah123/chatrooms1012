@@ -57,7 +57,7 @@ export default async function ProfilePage({
   return (
     <>
       <Navbar />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-10 sm:px-6">
+      <main className="mx-auto w-full max-w-3xl px-4 pb-28 sm:pb-24 pt-10 sm:px-6">
         <section className="glass animate-fade-up p-6 sm:p-8">
           <div className="flex items-center gap-5">
             <Avatar username={profile.username} src={profile.avatarUrl} size={72} />

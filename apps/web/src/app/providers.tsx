@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { AuthBootstrap } from "@/stores/auth-bootstrap";
 import { RoomAlerts } from "@/components/layout/room-alerts";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { GlobalSearch } from "@/components/search/global-search";
 
 /**
  * Client-side providers. The QueryClient is created inside state so SSR
@@ -36,6 +38,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthBootstrap />
       {children}
       <RoomAlerts />
+      <GlobalSearch />
+      <MobileTabBar />
     </QueryClientProvider>
   );
 }

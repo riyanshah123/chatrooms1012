@@ -17,11 +17,23 @@ export const metadata: Metadata = {
     template: "%s · Chatrooms101",
   },
   description:
-    "Scroll endless discussion prompts and trending topics. Join live 10-person chatrooms — always anonymous.",
+    "Ten seats, real conversations, and nobody knows who you are. Jump into live rooms about things you actually care about.",
+  // Standalone launch + proper status bar when added to a home screen.
+  appleWebApp: {
+    capable: true,
+    title: "chatrooms101",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fafafa",
+  themeColor: "#FAF7F1",
+  // Let the app paint into the notch/home-indicator area; components opt in
+  // to safe-area padding where it matters.
+  viewportFit: "cover",
+  // Phone-first: the layout is designed for this width, don't let users
+  // pinch-zoom into a broken state, but keep accessibility scaling.
+  maximumScale: 5,
 };
 
 /**

@@ -64,15 +64,15 @@ export default async function HomePage() {
   return (
     <>
       <Navbar />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-28 sm:pb-24 sm:px-6">
         {/* Hero */}
-        <section className="flex flex-col items-center py-14 text-center sm:py-20">
+        <section className="flex flex-col items-center py-8 text-center sm:py-20">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-600 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm">
             <Zap size={13} className="fill-white" />
             The Digital Town Square
           </span>
 
-          <h1 className="mt-7 font-display text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-7xl">
+          <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:mt-7 sm:text-7xl">
             Real talk.
             <br />
             <span className="bg-gradient-to-r from-[#E0603C] via-[#E14A7B] to-[#D63C9A] bg-clip-text text-transparent">
@@ -80,12 +80,12 @@ export default async function HomePage() {
             </span>
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg text-muted">
+          <p className="mt-4 max-w-xl text-muted sm:mt-6 sm:text-lg">
             Ten seats, real conversations, and nobody knows who you are.
             Pick something you actually care about and jump in.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-6 flex w-full flex-wrap items-center justify-center gap-3 sm:mt-8">
             <Link href="/create" className="btn-primary h-12 rounded-full px-7 text-base shadow-lg shadow-accent/20">
               <Plus size={19} strokeWidth={2.5} />
               Start a Discussion
@@ -97,12 +97,12 @@ export default async function HomePage() {
           </div>
 
           {/* Live stats */}
-          <div className="mt-14 grid w-full max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mt-8 grid w-full max-w-3xl grid-cols-2 gap-3 sm:mt-14 sm:gap-4 sm:grid-cols-4">
             {statCards.map((s) => (
-              <div key={s.label} className="glass flex flex-col items-center gap-1.5 px-4 py-5">
+              <div key={s.label} className="glass flex flex-col items-center gap-1 px-3 py-3.5 sm:gap-1.5 sm:px-4 sm:py-5">
                 <s.icon size={20} className="text-muted" />
-                <span className="font-display text-3xl font-bold tabular-nums">{s.value}</span>
-                <span className="text-sm text-muted">{s.label}</span>
+                <span className="font-display text-2xl font-bold tabular-nums sm:text-3xl">{s.value}</span>
+                <span className="text-xs text-muted sm:text-sm">{s.label}</span>
               </div>
             ))}
           </div>
@@ -145,15 +145,6 @@ export default async function HomePage() {
         </div>
       </main>
 
-      {/* Mobile floating "create" button — the navbar/header CTAs are hidden
-          on small screens, so this keeps starting a discussion one tap away. */}
-      <Link
-        href="/create"
-        aria-label="Start a discussion"
-        className="btn-primary fixed bottom-6 right-5 z-40 size-14 rounded-full !px-0 shadow-xl shadow-accent/30 sm:hidden"
-      >
-        <Plus size={26} strokeWidth={2.5} />
-      </Link>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted">
         chatrooms101. Real talk, real people.

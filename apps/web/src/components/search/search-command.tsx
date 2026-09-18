@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Hash, MessageSquare, Search as SearchIcon, User } from "lucide-react";
+import { Hash, MessageSquare, Search as SearchIcon, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/ui/avatar";
@@ -65,7 +65,7 @@ export function SearchCommand({ open, onClose }: { open: boolean; onClose: () =>
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm sm:px-4 sm:pt-[12vh]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -73,7 +73,7 @@ export function SearchCommand({ open, onClose }: { open: boolean; onClose: () =>
           onClick={onClose}
         >
           <motion.div
-            className="glass w-full max-w-xl overflow-hidden p-0"
+            className="glass flex h-full w-full max-w-xl flex-col overflow-hidden rounded-none p-0 sm:h-auto sm:rounded-2xl"
             initial={{ opacity: 0, y: -12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
@@ -91,10 +91,18 @@ export function SearchCommand({ open, onClose }: { open: boolean; onClose: () =>
                 className="w-full bg-transparent text-base outline-none placeholder:text-muted/70 sm:text-[15px]"
               />
               {results.isFetching && <Spinner className="size-4" />}
+              {/* Phones have no Escape key and the sheet is full screen. */}
+              <button
+                onClick={onClose}
+                aria-label="Close search"
+                className="-mr-1 shrink-0 rounded-lg p-2 text-muted transition hover:bg-surface-2 hover:text-ink sm:hidden"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Results */}
-            <div className="max-h-[55vh] overflow-y-auto p-2">
+            <div className="flex-1 overflow-y-auto p-2 sm:max-h-[55vh] sm:flex-none">
               {debounced.length < 2 ? (
                 <p className="px-3 py-8 text-center text-sm text-muted">
                   Type at least two letters to search.
@@ -170,7 +178,7 @@ function Row({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-surface-2"
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-left text-sm transition-colors hover:bg-surface-2 sm:py-2.5"
     >
       <span className="flex size-5 shrink-0 items-center justify-center text-muted">{icon}</span>
       {children}
