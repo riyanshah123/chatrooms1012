@@ -6,6 +6,7 @@
  * Run: pnpm db:seed
  */
 import { PrismaClient, RoomType } from "@prisma/client";
+import { UNLIMITED_CAPACITY } from "../src/common/constants";
 
 const prisma = new PrismaClient();
 
@@ -752,10 +753,21 @@ async function main(): Promise<void> {
           trendScore: t.trending ? 100 : 10,
         },
       });
+      // Topic rooms are unlimited: anyone can walk in. Prompt rooms are the
+      // capped, intimate ones.
       const existing = await tx.chatroom.findUnique({ where: { topicId: topic.id } });
       if (!existing) {
         await tx.chatroom.create({
-          data: { type: RoomType.TOPIC, topicId: topic.id, capacity: 10 },
+          data: {
+            type: RoomType.TOPIC,
+            topicId: topic.id,
+            capacity: UNLIMITED_CAPACITY,
+          },
+        });
+      } else if (existing.capacity < UNLIMITED_CAPACITY) {
+        await tx.chatroom.update({
+          where: { id: existing.id },
+          data: { capacity: UNLIMITED_CAPACITY },
         });
       }
     });

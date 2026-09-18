@@ -9,6 +9,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { useChatRoom } from "@/hooks/use-chat-room";
 import { useAuthStore } from "@/stores/auth";
+import { occupancyLabel } from "@/lib/capacity";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
 import { RoomFullDialog } from "./room-full-dialog";
@@ -129,7 +130,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold">{room.title}</h1>
           <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted sm:inline-flex">
             <Users size={13} />
-            {room.memberCount}/{room.capacity} in room
+            {occupancyLabel(room.memberCount, room.capacity, " in room")}
           </span>
           <button
             onClick={() => setMembersOpen((v) => !v)}

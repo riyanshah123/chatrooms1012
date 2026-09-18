@@ -18,6 +18,7 @@ import {
 import { PrismaService } from "@/infra/prisma/prisma.service";
 import { RedisService } from "@/infra/redis/redis.service";
 import { ChatEventsService } from "@/modules/chat-gateway/chat-events.service";
+import { TOPIC_OVERFLOW_AT, UNLIMITED_CAPACITY } from "@/common/constants";
 
 export interface RoomView {
   id: string;
@@ -181,11 +182,16 @@ export class ChatroomsService {
     await this.persistJoin(roomId, profileId);
     await this.broadcastJoin(roomId, profileId);
 
-    // If that join filled the room, open a fresh copy of the same discussion
-    // so the next person still has somewhere to go. Clearly people want to
-    // talk about it.
     const seatedNow = await this.redis.client.scard(this.redis.roomKeys(roomId).members);
-    if (seatedNow >= room.capacity) {
+    if (room.capacity >= UNLIMITED_CAPACITY) {
+      // Topic room: no cap, but past a crowd size the conversation stops
+      // working, so split it into a second room.
+      if (seatedNow >= TOPIC_OVERFLOW_AT) {
+        void this.maybeDuplicateTopic(roomId).catch(() => undefined);
+      }
+    } else if (seatedNow >= room.capacity) {
+      // Prompt room just filled its 10 seats: clone it so the next person
+      // still has somewhere to go.
       void this.spawnOverflowRoom(roomId).catch(() => undefined);
     }
     return { joined: true };
@@ -242,6 +248,7 @@ export class ChatroomsService {
       update: {},
       create: { chatroomId: roomId, profileId, status: "WAITING" },
     });
+
     return { status: "WAITING", position: result };
   }
 
@@ -316,6 +323,82 @@ export class ChatroomsService {
       mutedUntil: mutedUntil.toISOString(),
     } satisfies UserMutedPayload);
     return { mutedUntil: mutedUntil.toISOString() };
+  }
+
+  /**
+   * A topic room has no seat limit, but once a crowd gets past
+   * TOPIC_OVERFLOW_AT the conversation stops being followable, so we open a
+   * parallel room for the same subject. Skips if a sibling room is still
+   * comfortably sized.
+   *
+   * Topics are 1:1 with a chatroom in the schema, so the "duplicate" is a new
+   * Topic row carrying the same subject, numbered.
+   */
+  private async maybeDuplicateTopic(roomId: string): Promise<void> {
+    const room = await this.prisma.chatroom.findUnique({
+      where: { id: roomId },
+      select: {
+        capacity: true,
+        topic: {
+          select: {
+            slug: true,
+            title: true,
+            description: true,
+            imageUrl: true,
+            categoryId: true,
+          },
+        },
+      },
+    });
+    const topic = room?.topic;
+    if (!topic) return; // prompt rooms overflow via spawnOverflowRoom instead
+
+    const seated = await this.redis.client.scard(this.redis.roomKeys(roomId).members);
+    if (seated < TOPIC_OVERFLOW_AT) return;
+
+    // Strip any existing " (Room n)" / "-room-n" so copies chain off the original.
+    const baseTitle = topic.title.replace(/\s*\(Room \d+\)$/, "");
+    const baseSlug = topic.slug.replace(/-room-\d+$/, "");
+
+    const siblings = await this.prisma.topic.findMany({
+      where: { OR: [{ slug: baseSlug }, { slug: { startsWith: `${baseSlug}-room-` } }] },
+      select: { slug: true, chatroom: { select: { id: true, capacity: true } } },
+    });
+
+    // If any existing room for this topic still has space, no need for another.
+    for (const sib of siblings) {
+      const id = sib.chatroom?.id;
+      if (!id || id === roomId) continue;
+      const count = await this.redis.client.scard(this.redis.roomKeys(id).members);
+      if (count < TOPIC_OVERFLOW_AT) return; // a sibling still has breathing room
+    }
+
+    const next = siblings.length + 1;
+    const created = await this.prisma.topic.create({
+      data: {
+        slug: `${baseSlug}-room-${next}`,
+        title: `${baseTitle} (Room ${next})`,
+        description: topic.description,
+        imageUrl: topic.imageUrl,
+        categoryId: topic.categoryId,
+        chatroom: { create: { type: "TOPIC", capacity: UNLIMITED_CAPACITY } },
+      },
+      include: {
+        category: { select: { name: true } },
+        chatroom: { select: { id: true } },
+      },
+    });
+
+    this.events.toEveryone(SocketEvents.ROOM_CREATED, {
+      promptId: created.id,
+      chatroomId: created.chatroom!.id,
+      title: created.title,
+      categoryName: created.category.name,
+      creatorUsername: "Chatrooms",
+    });
+
+    const keysToBust = await this.redis.client.keys("cr:cache:topics:*");
+    if (keysToBust.length) await this.redis.client.del(...keysToBust);
   }
 
   /**

@@ -81,7 +81,9 @@
       "Bash(curl -s --max-time 90 __TRACKED_VAR__/stats)",
       "Bash(curl -s --max-time 90 __TRACKED_VAR__/topics)",
       "Bash(python -c ' *)",
-      "Bash(node -e \"const esbuild=require\\('C:/Users/Riyan/Desktop/chatrooms101/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild'\\);esbuild.buildSync\\({entryPoints:['seed.ts'],write:false}\\);console.log\\('seed.ts parses cleanly'\\)\")"
+      "Bash(node -e \"const esbuild=require\\('C:/Users/Riyan/Desktop/chatrooms101/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild'\\);esbuild.buildSync\\({entryPoints:['seed.ts'],write:false}\\);console.log\\('seed.ts parses cleanly'\\)\")",
+      "Bash(curl -s -o /dev/null -w \"api -> %{http_code} in %{time_total}s\\\\n\" --max-time 150 https://chatrooms-api-bfuv.onrender.com/health/live)",
+      "Bash(curl -s --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")"
     ]
   }
 }

@@ -5,6 +5,7 @@ import { serverFetch, ApiRequestError } from "@/lib/api";
 import type { PublicProfile, Visibility } from "@chatrooms/contracts";
 import { Navbar } from "@/components/layout/navbar";
 import { Avatar } from "@/components/ui/avatar";
+import { isUnlimited, occupancyLabel } from "@/lib/capacity";
 
 // Render at request time (the API isn't reachable during the build).
 export const dynamic = "force-dynamic";
@@ -95,7 +96,11 @@ export default async function PromptDetailPage({ params }: { params: { id: strin
               <Avatar username={prompt.creator.username} src={prompt.creator.avatarUrl} size={40} />
               <div>
                 <p className="text-sm font-semibold">Started by @{prompt.creator.username}</p>
-                <p className="text-xs text-muted">Max {capacity} people per room</p>
+                <p className="text-xs text-muted">
+                  {isUnlimited(capacity)
+                    ? "Open room, everyone welcome"
+                    : `Max ${capacity} people per room`}
+                </p>
               </div>
             </div>
           </div>
@@ -118,7 +123,7 @@ export default async function PromptDetailPage({ params }: { params: { id: strin
                 <p className="font-display font-bold">Discussion Room</p>
                 <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/5 px-2.5 py-1 text-xs font-semibold text-accent">
                   <Users size={12} />
-                  {seated}/{capacity}
+                  {occupancyLabel(seated, capacity)}
                 </span>
               </div>
 
