@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
-import { ApiRequestError } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1");
@@ -17,6 +18,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Only offer Google if this deployment actually has credentials for it.
+  const { data: providers } = useQuery({
+    queryKey: ["auth-providers"],
+    queryFn: () => api<{ google: boolean }>("/auth/providers"),
+    staleTime: 300_000,
+  });
+  const googleEnabled = providers?.google ?? false;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,18 +61,23 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           : "Your email stays private — everyone sees only your anonymous name."}
       </p>
 
-      {/* Google OAuth is a full-page redirect through the API */}
-      <a href={`${API_ORIGIN}/auth/google`} className="btn-ghost mt-6 w-full">
-        <GoogleIcon />
-        Continue with Google
-      </a>
+      {googleEnabled && (
+        <>
+          {/* Full page redirect; goes through the same origin proxy so the
+              session cookie lands on this domain. */}
+          <a href={`${API_ORIGIN}/auth/google`} className="btn-ghost mt-6 w-full">
+            <GoogleIcon />
+            Continue with Google
+          </a>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-muted">
-        <span className="h-px flex-1 bg-border" /> or with email
-        <span className="h-px flex-1 bg-border" />
-      </div>
+          <div className="my-5 flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" /> or with email
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </>
+      )}
 
-      <form onSubmit={submit} className="space-y-3">
+      <form onSubmit={submit} className={`space-y-3 ${googleEnabled ? "" : "mt-6"}`}>
         <input
           type="email"
           required

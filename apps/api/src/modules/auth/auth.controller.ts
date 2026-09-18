@@ -72,6 +72,17 @@ export class AuthController {
     return this.finish(res, result);
   }
 
+  /**
+   * Which sign-in methods this deployment can actually offer. The UI hides
+   * the Google button when no credentials are configured, rather than showing
+   * a button that dead-ends on a Google error page.
+   */
+  @Public()
+  @Get("providers")
+  providers() {
+    return { google: !!this.config.get<string>("GOOGLE_CLIENT_ID") };
+  }
+
   // ── Google OAuth ───────────────────────────────────────────────────────
 
   /** Redirects to Google's consent screen. */
