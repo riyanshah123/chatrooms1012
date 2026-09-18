@@ -608,6 +608,117 @@ const EXTRA_PROMPTS: Record<string, string[]> = {
 };
 
 // Second extra bank — leadership, money/life, and hot-take prompts.
+/**
+ * Hand written prompts that should sit at the very top of the feed. Unlike the
+ * generated banks these carry their own copy and get current timestamps, so
+ * they lead "newest" the moment they land.
+ */
+const TOP_PROMPTS: Array<{ category: string; title: string; description: string }> = [
+  // Latent / Samay Raina / standup
+  {
+    category: "tv-shows",
+    title: "Is Latent season 2 actually bad or just getting hated on?",
+    description:
+      "Half the timeline decided it was over before watching. Is the drop in quality real, or is this just what happens once a show becomes a target?",
+  },
+  {
+    category: "tv-shows",
+    title: "Did Samay Raina handle the controversy well?",
+    description:
+      "Pulling the episodes, the apology, going quiet, then coming back. Was that damage control done right or did he cave too fast?",
+  },
+  {
+    category: "tv-shows",
+    title: "Should a comedian be responsible for what a guest says on their show?",
+    description:
+      "The host did not say the line. It still ended his show for months. Where does responsibility actually sit?",
+  },
+  {
+    category: "tv-shows",
+    title: "Has Indian standup gotten too scared to be funny?",
+    description:
+      "Every set now feels written with a screenshot in mind. Is that caution killing the comedy or just changing it?",
+  },
+  {
+    category: "tv-shows",
+    title: "Who is the best standup comedian in India right now?",
+    description:
+      "Not the most famous, the best. Pick one and say why everyone else is behind them.",
+  },
+  {
+    category: "tv-shows",
+    title: "Is roast comedy dead in India?",
+    description:
+      "AIB went down, Latent got pulled. Can anyone still do it here, or has that door closed for good?",
+  },
+
+  // Politics
+  {
+    category: "politics",
+    title: "BJP vs Congress",
+    description:
+      "Forget the noise for a second. On actual delivery, which one has served the country better in the last ten years?",
+  },
+  {
+    category: "politics",
+    title: "Is the opposition in India genuinely weak or just outplayed?",
+    description:
+      "Bad leadership, or a machine they cannot match? There is a real difference and it decides what happens next.",
+  },
+  {
+    category: "politics",
+    title: "Do freebies win elections or wreck state finances?",
+    description:
+      "Every party promises them and every economist warns about them. Both cannot be right.",
+  },
+  {
+    category: "politics",
+    title: "Should there be an age limit for politicians?",
+    description:
+      "Pilots retire, judges retire, everyone retires. Should the people running the country?",
+  },
+  {
+    category: "politics",
+    title: "Is regional politics stronger than national politics in India?",
+    description:
+      "State leaders keep winning where national parties cannot. Is that the real story of Indian politics now?",
+  },
+  {
+    category: "politics",
+    title: "Has social media made Indian politics better or uglier?",
+    description:
+      "More people can speak than ever. Whether that improved anything is a completely separate question.",
+  },
+
+  // Tech
+  {
+    category: "technology",
+    title: "Apple foldable vs Samsung Fold",
+    description:
+      "Samsung has been at this for years. Apple shows up late and everyone forgets. Who actually wins this one?",
+  },
+
+  // Reframed: the serious debate under a difficult case
+  {
+    category: "health",
+    title: "Should postpartum psychosis change how the law judges a parent?",
+    description:
+      "Severe postpartum illness is medically real and badly understood. Should it change the verdict, the sentence, both, or neither?",
+  },
+  {
+    category: "health",
+    title: "Does India take postpartum mental health seriously at all?",
+    description:
+      "New mothers get advice on feeding and almost nothing on their own head. What would actually change that?",
+  },
+  {
+    category: "politics",
+    title: "Is the justice system equipped to handle severe mental illness?",
+    description:
+      "Courts have to decide who was in control of themselves. Are they anywhere near able to do that well?",
+  },
+];
+
 const EXTRA_PROMPTS_2: Record<string, string[]> = {
   politics: [
     "Which political leader today is the most overrated?",
@@ -869,6 +980,43 @@ async function main(): Promise<void> {
       created++;
     }
   }
+
+  // Hand written prompts, newest first so they lead the feed.
+  let topRank = 0;
+  for (const tp of TOP_PROMPTS) {
+    const createdAt = new Date(Date.now() - topRank * 60_000);
+    topRank++;
+    const tags = deriveTags(tp.title, tp.category);
+    const existing = await prisma.prompt.findFirst({
+      where: { title: tp.title, creatorId: systemProfileId },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.prompt.update({
+        where: { id: existing.id },
+        data: {
+          description: tp.description,
+          tags,
+          categoryId: catId(tp.category),
+          createdAt,
+        },
+      });
+    } else {
+      await prisma.prompt.create({
+        data: {
+          title: tp.title,
+          description: tp.description,
+          tags,
+          categoryId: catId(tp.category),
+          creatorId: systemProfileId,
+          maxUsers: 10,
+          createdAt,
+          chatroom: { create: { type: RoomType.PROMPT, capacity: 10 } },
+        },
+      });
+    }
+  }
+  console.log(`Top prompts pinned: ${TOP_PROMPTS.length}`);
 
   console.log("Seed complete:",
     `${CATEGORIES.length} categories, ${TOPICS.length} topics, ` +
