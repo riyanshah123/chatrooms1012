@@ -84,6 +84,21 @@ export default async function HomePage() {
           </div>
 
           <LiveStats initial={stats} />
+        </section>
+
+        {/* Topic rooms. Above the feed on purpose: the feed scrolls forever,
+            so anything below it never gets seen. */}
+        <TopicsStrip initial={topics.items} />
+
+        {/* Trending: where people actually are right now */}
+        <section className="pt-12">
+          <div className="mb-5 flex items-center gap-2">
+            <span className="text-2xl">🔥</span>
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-tight">Trending</h2>
+              <p className="mt-1 text-muted">Rooms with people in them right now.</p>
+            </div>
+          </div>
           <TrendingPrompts initial={trending.items} />
         </section>
 

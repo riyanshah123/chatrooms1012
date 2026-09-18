@@ -7,7 +7,7 @@ import type { FeedPromptCard } from "./prompt-feed";
 
 /** Uniform box height so the 2-per-row grid stays even and the feed
  *  virtualizer can use exact row heights. Keep in sync with prompt-feed. */
-export const CARD_HEIGHT = 300;
+export const CARD_HEIGHT = 258;
 
 /**
  * Prompt box — structured like the reference design:
@@ -77,7 +77,7 @@ export function PromptCard({ prompt }: { prompt: FeedPromptCard }) {
 
       {/* Description question */}
       {prompt.description && (
-        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted">
+        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">
           {prompt.description}
         </p>
       )}
@@ -92,7 +92,7 @@ export function PromptCard({ prompt }: { prompt: FeedPromptCard }) {
       )}
 
       {/* Footer */}
-      <div className="mt-auto flex items-center gap-2 border-t border-border pt-3">
+      <div className="mt-auto flex items-center gap-2 border-t border-border pt-2.5">
         <Avatar username={prompt.creator.username} src={prompt.creator.avatarUrl} size={24} />
         <span className="truncate text-sm text-muted">@{prompt.creator.username}</span>
         <span className="ml-auto flex shrink-0 items-center gap-1 text-sm font-semibold text-accent">

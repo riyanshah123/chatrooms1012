@@ -7,7 +7,7 @@ export function Skeleton({ className }: { className?: string }) {
 /** Matches PromptCard's fixed box height so the grid doesn't jump. */
 export function CardSkeleton() {
   return (
-    <div className="glass flex h-[300px] flex-col p-5">
+    <div className="glass flex h-[258px] flex-col p-5">
       <div className="flex items-center justify-between">
         <Skeleton className="h-7 w-28 rounded-full" />
         <Skeleton className="h-7 w-20 rounded-full" />
