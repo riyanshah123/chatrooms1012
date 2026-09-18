@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Compass, Hash, MessageSquare, Plus, Users, Zap } from "lucide-react";
+import { Compass, Plus, Zap } from "lucide-react";
 import { serverFetch } from "@/lib/api";
 import type { Paginated } from "@chatrooms/contracts";
 import { Navbar } from "@/components/layout/navbar";
 import { PromptFeed, type FeedPromptCard } from "@/components/feed/prompt-feed";
 import { TrendingPrompts } from "@/components/feed/trending-prompts";
 import { TopicsStrip } from "@/components/feed/topics-strip";
+import { LiveStats, type PlatformStats } from "@/components/feed/live-stats";
 import type { TopicCardData } from "@/components/feed/trending-topics";
 
 interface CategoryChip {
@@ -13,13 +14,6 @@ interface CategoryChip {
   slug: string;
   name: string;
   icon: string | null;
-}
-
-interface PlatformStats {
-  activeRooms: number;
-  topics: number;
-  messagesToday: number;
-  users: number;
 }
 
 const ZERO_STATS: PlatformStats = { activeRooms: 0, topics: 0, messagesToday: 0, users: 0 };
@@ -53,13 +47,6 @@ export default async function HomePage() {
     ),
     serverFetch<PlatformStats>("/stats", { revalidate: 30 }).catch(() => ZERO_STATS),
   ]);
-
-  const statCards = [
-    { icon: MessageSquare, value: stats.activeRooms, label: "Active Rooms" },
-    { icon: Hash, value: stats.topics, label: "Topics" },
-    { icon: Zap, value: stats.messagesToday, label: "Messages Today" },
-    { icon: Users, value: stats.users, label: "Users" },
-  ];
 
   return (
     <>
@@ -96,31 +83,7 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          {/* Live stats */}
-          <div className="mt-8 grid w-full max-w-3xl grid-cols-2 gap-3 sm:mt-14 sm:gap-4 sm:grid-cols-4">
-            {statCards.map((s) => (
-              <div key={s.label} className="glass flex flex-col items-center gap-1 px-3 py-3.5 sm:gap-1.5 sm:px-4 sm:py-5">
-                <s.icon size={20} className="text-muted" />
-                <span className="font-display text-2xl font-bold tabular-nums sm:text-3xl">{s.value}</span>
-                <span className="text-xs text-muted sm:text-sm">{s.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Topic rooms. Deliberately above the feed: the feed scrolls forever,
-            so anything below it never gets seen. */}
-        <TopicsStrip initial={topics.items} />
-
-        {/* Trending prompts — highest traffic right now */}
-        <section className="pt-12">
-          <div className="mb-5 flex items-center gap-2">
-            <span className="text-2xl">🔥</span>
-            <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight">Trending</h2>
-              <p className="mt-1 text-muted">The most active discussions right now.</p>
-            </div>
-          </div>
+          <LiveStats initial={stats} />
           <TrendingPrompts initial={trending.items} />
         </section>
 
