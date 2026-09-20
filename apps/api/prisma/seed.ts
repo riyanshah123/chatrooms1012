@@ -988,12 +988,17 @@ async function main(): Promise<void> {
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
+  // Also marks them confirmed: whoever runs the deployment doesn't need to
+  // prove their own address to themselves, and this keeps the operator able
+  // to post before transactional email is configured.
   if (adminEmails.length) {
     const promoted = await prisma.user.updateMany({
-      where: { email: { in: adminEmails }, role: { not: "ADMIN" } },
-      data: { role: "ADMIN" },
+      where: { email: { in: adminEmails } },
+      data: { role: "ADMIN", emailVerified: true },
     });
-    if (promoted.count) console.log(`Promoted ${promoted.count} admin(s)`);
+    if (promoted.count) {
+      console.log(`Admin + verified: ${promoted.count} account(s)`);
+    }
   }
 
   // Remove retired prompts (cascades to their room and messages).
