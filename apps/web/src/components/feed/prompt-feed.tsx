@@ -36,11 +36,11 @@ interface CategoryChip {
 const GAP = 16;
 
 /**
- * The endless feed — a 2-per-row grid (1 on mobile), window-virtualized by
- * ROW: cards have a fixed height (CARD_HEIGHT), so each virtual row is
- * exactly CARD_HEIGHT+GAP tall and holds `cols` cards. Only the rows near
- * the viewport are mounted; pagination fires when the last rendered row
- * gets within 3 rows of the end.
+ * The endless feed — a responsive grid (1/2/3 per row), window-virtualized by
+ * ROW. Rows measure their own height rather than assuming a fixed one, so a
+ * long title or description grows the row instead of being clipped, and cards
+ * in a row stretch to match. Only rows near the viewport are mounted;
+ * pagination fires when the last rendered row is within 3 of the end.
  */
 export function PromptFeed({
   initialPage,
@@ -87,7 +87,8 @@ export function PromptFeed({
 
   const virtualizer = useWindowVirtualizer({
     count: rowCount,
-    estimateSize: () => CARD_HEIGHT + GAP, // exact — fixed-height cards
+    // Rows measure themselves below; this is only the pre-render guess.
+    estimateSize: () => CARD_HEIGHT + GAP,
     overscan: 4,
     scrollMargin,
   });
@@ -148,13 +149,14 @@ export function PromptFeed({
             return (
               <div
                 key={vr.key}
-                className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                ref={virtualizer.measureElement}
+                data-index={vr.index}
+                className="grid grid-cols-1 gap-4 pb-4 sm:grid-cols-2 lg:grid-cols-3"
                 style={{
                   position: "absolute",
                   top: 0,
                   left: 0,
                   width: "100%",
-                  height: CARD_HEIGHT,
                   transform: `translateY(${vr.start - virtualizer.options.scrollMargin}px)`,
                 }}
               >

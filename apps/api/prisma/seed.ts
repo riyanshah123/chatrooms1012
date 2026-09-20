@@ -620,43 +620,54 @@ const RETIRED_PROMPT_TITLES: string[] = [
   "Is the justice system equipped to handle severe mental illness?",
 ];
 
-const TOP_PROMPTS: Array<{ category: string; title: string; description: string }> = [
+const TOP_PROMPTS: Array<{
+  category: string;
+  title: string;
+  description: string;
+  tags: string[];
+}> = [
   // Latent / Samay Raina / standup
   {
     category: "tv-shows",
     title: "Is Latent season 2 actually bad or just getting hated on?",
     description:
       "Half the timeline decided it was over before watching. Is the drop in quality real, or is this just what happens once a show becomes a target?",
+    tags: ["latent", "samay-raina", "standup"],
   },
   {
     category: "tv-shows",
     title: "Did Samay Raina handle the controversy well?",
     description:
       "Pulling the episodes, the apology, going quiet, then coming back. Was that damage control done right or did he cave too fast?",
+    tags: ["samay-raina", "controversy", "standup"],
   },
   {
     category: "tv-shows",
     title: "Should a comedian be responsible for what a guest says on their show?",
     description:
       "The host did not say the line. It still ended his show for months. Where does responsibility actually sit?",
+    tags: ["standup", "free-speech", "accountability"],
   },
   {
     category: "tv-shows",
     title: "Has Indian standup gotten too scared to be funny?",
     description:
       "Every set now feels written with a screenshot in mind. Is that caution killing the comedy or just changing it?",
+    tags: ["standup", "censorship", "comedy"],
   },
   {
     category: "tv-shows",
     title: "Who is the best standup comedian in India right now?",
     description:
       "Not the most famous, the best. Pick one and say why everyone else is behind them.",
+    tags: ["standup", "comedy", "india"],
   },
   {
     category: "tv-shows",
     title: "Is roast comedy dead in India?",
     description:
       "AIB went down, Latent got pulled. Can anyone still do it here, or has that door closed for good?",
+    tags: ["roast", "comedy", "aib"],
   },
 
   // Politics
@@ -665,36 +676,42 @@ const TOP_PROMPTS: Array<{ category: string; title: string; description: string 
     title: "BJP vs Congress",
     description:
       "Forget the noise for a second. On actual delivery, which one has served the country better in the last ten years?",
+    tags: ["bjp", "congress", "elections"],
   },
   {
     category: "politics",
     title: "Is the opposition in India genuinely weak or just outplayed?",
     description:
       "Bad leadership, or a machine they cannot match? There is a real difference and it decides what happens next.",
+    tags: ["opposition", "congress", "elections"],
   },
   {
     category: "politics",
     title: "Do freebies win elections or wreck state finances?",
     description:
       "Every party promises them and every economist warns about them. Both cannot be right.",
+    tags: ["freebies", "elections", "economy"],
   },
   {
     category: "politics",
     title: "Should there be an age limit for politicians?",
     description:
       "Pilots retire, judges retire, everyone retires. Should the people running the country?",
+    tags: ["politicians", "age-limit", "reform"],
   },
   {
     category: "politics",
     title: "Is regional politics stronger than national politics in India?",
     description:
       "State leaders keep winning where national parties cannot. Is that the real story of Indian politics now?",
+    tags: ["regional", "national", "elections"],
   },
   {
     category: "politics",
     title: "Has social media made Indian politics better or uglier?",
     description:
       "More people can speak than ever. Whether that improved anything is a completely separate question.",
+    tags: ["social-media", "politics", "india"],
   },
 
   // Tech
@@ -703,6 +720,7 @@ const TOP_PROMPTS: Array<{ category: string; title: string; description: string 
     title: "Apple foldable vs Samsung Fold",
     description:
       "Samsung has been at this for years. Apple shows up late and everyone forgets. Who actually wins this one?",
+    tags: ["apple", "samsung", "foldables"],
   },
 
   // Criminal responsibility and mental illness
@@ -711,12 +729,14 @@ const TOP_PROMPTS: Array<{ category: string; title: string; description: string 
     title: "Is Lindsay Clancy guilty?",
     description:
       "She does not dispute what happened. The defence is severe postpartum psychosis, so the whole case turns on whether she was criminally responsible for it. Where do you land?",
+    tags: ["lindsay-clancy", "trial", "mental-health"],
   },
   {
     category: "politics",
     title: "Is the insanity defence applied fairly?",
     description:
       "Some see it as a loophole, others as the only humane part of the system. Which is it in practice?",
+    tags: ["insanity-defence", "justice", "mental-health"],
   },
 ];
 
@@ -764,6 +784,9 @@ const STOP = new Set([
   "if", "could", "would", "who", "what", "which", "how", "really", "actually",
   "genuinely", "then", "with", "was", "will", "can", "does", "do", "than",
   "into", "out", "not", "but", "get", "got", "now", "our", "his", "her",
+  "did", "does", "has", "had", "been", "being", "than", "them", "they", "any",
+  "all", "too", "very", "actually", "genuinely", "really", "ever", "even",
+  "getting", "handle", "well", "right", "wrong", "good", "bad", "season",
 ]);
 
 function hash(s: string): number {
@@ -1014,7 +1037,7 @@ async function main(): Promise<void> {
   for (const tp of TOP_PROMPTS) {
     const createdAt = new Date(Date.now() - topRank * 60_000);
     topRank++;
-    const tags = deriveTags(tp.title, tp.category);
+    const tags = tp.tags;
     const existing = await prisma.prompt.findFirst({
       where: { title: tp.title, creatorId: systemProfileId },
       select: { id: true },

@@ -5,9 +5,12 @@ import { ArrowRight, Users, Zap } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import type { FeedPromptCard } from "./prompt-feed";
 
-/** Uniform box height so the 2-per-row grid stays even and the feed
- *  virtualizer can use exact row heights. Keep in sync with prompt-feed. */
-export const CARD_HEIGHT = 258;
+/**
+ * Starting estimate for a row's height. The virtualizer measures each row for
+ * real, so this only affects the scrollbar before anything has rendered.
+ * Cards themselves stretch to the tallest in their row.
+ */
+export const CARD_HEIGHT = 280;
 
 /**
  * Prompt box — structured like the reference design:
@@ -41,8 +44,7 @@ export function PromptCard({ prompt }: { prompt: FeedPromptCard }) {
           open();
         }
       }}
-      style={{ height: CARD_HEIGHT }}
-      className={`glass group flex cursor-pointer flex-col p-5 transition
+      className={`glass group flex h-full cursor-pointer flex-col overflow-hidden p-5 transition
         hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 ${
           prompt.boosted ? "border-accent/60 ring-1 ring-accent/30" : ""
