@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Paginated } from "@chatrooms/contracts";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,21 +49,46 @@ export function TrendingTopics({
   const [category, setCategory] = useState<string | null>(initialCategory ?? null);
   const categories = useCategories(initialCategories);
 
-  const { data, isFetching } = useQuery({
-    queryKey: ["topics", category],
-    queryFn: () =>
-      api<Paginated<TopicCardData>>(
-        `/topics${category ? `?category=${category}` : ""}`,
-      ),
-    // Don't adopt an empty SSR page as final (API may have been cold) — refetch.
-    initialData:
-      category === (initialCategory ?? null) && initialPage.items.length > 0
-        ? initialPage
-        : undefined,
-    staleTime: 60_000,
-  });
+  // There are hundreds of topics; the API pages them 20 at a time, so this
+  // keeps pulling as the reader scrolls instead of stopping at the first page.
+  const { data, isFetching, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: ["topics", category],
+      queryFn: ({ pageParam, signal }) => {
+        const params = new URLSearchParams();
+        if (category) params.set("category", category);
+        if (pageParam) params.set("cursor", pageParam);
+        const qs = params.toString();
+        return api<Paginated<TopicCardData>>(`/topics${qs ? `?${qs}` : ""}`, { signal });
+      },
+      initialPageParam: "",
+      getNextPageParam: (last) => last.nextCursor ?? undefined,
+      // Don't adopt an empty SSR page as final (API may have been cold).
+      initialData:
+        category === (initialCategory ?? null) && initialPage.items.length > 0
+          ? { pages: [initialPage], pageParams: [""] }
+          : undefined,
+      staleTime: 60_000,
+    });
 
-  const items = data?.items ?? [];
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
+
+  // Pull the next page as the sentinel nears the viewport.
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <section aria-label="Trending topics" className={standalone ? "mt-8" : "mt-16"}>
@@ -126,9 +151,25 @@ export function TrendingTopics({
             ))}
       </div>
 
+      {isFetchingNextPage && (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+      )}
+
+      <div ref={sentinelRef} aria-hidden className="h-px" />
+
       {items.length === 0 && !isFetching && (
         <p className="glass mt-4 p-8 text-center text-muted">
           No topics in this category yet.
+        </p>
+      )}
+
+      {!hasNextPage && items.length > 0 && (
+        <p className="py-8 text-center text-sm text-muted">
+          That&apos;s every topic.
         </p>
       )}
     </section>

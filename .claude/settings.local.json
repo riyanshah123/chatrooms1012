@@ -85,7 +85,10 @@
       "Bash(curl -s -o /dev/null -w \"api -> %{http_code} in %{time_total}s\\\\n\" --max-time 150 https://chatrooms-api-bfuv.onrender.com/health/live)",
       "Bash(curl -s --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts?sort=new\")",
       "Bash(sed -n '/export interface AccessPayload/,/^}/p' modules/auth/token.service.ts)",
-      "Bash(sed -n '/export interface AuthUser/,/^}/p' common/decorators/index.ts)"
+      "Bash(sed -n '/export interface AuthUser/,/^}/p' common/decorators/index.ts)",
+      "Bash(curl -s --max-time 120 \"https://chatrooms-api-bfuv.onrender.com/api/v1/search?q=Samay\")",
+      "Bash(curl -s --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/prompts/cmu6u7aeh00avx3q6do3bz8o3\")",
+      "Bash(curl -s --max-time 90 \"https://chatrooms-api-bfuv.onrender.com/api/v1/stats\")"
     ]
   }
 }

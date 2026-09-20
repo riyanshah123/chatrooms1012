@@ -50,11 +50,11 @@ export class TopicsService {
 
     const rows = await this.prisma.topic.findMany({
       where,
-      // Trending float to the top on the first page; cursor pages fall back
-      // to pure recency so keyset pagination stays consistent.
-      orderBy: cursor
-        ? [{ createdAt: "desc" }, { id: "desc" }]
-        : [{ isTrending: "desc" }, { trendScore: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      // One ordering for every page. Sorting page 1 differently (trending
+      // first) while cursor pages walk by recency makes items repeat or get
+      // skipped, since the cursor is (createdAt, id). Trending topics are
+      // surfaced by the landing strip and the badge instead.
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: PAGE_SIZE + 1,
       include: {
         category: { select: { slug: true, name: true, icon: true } },
