@@ -6,6 +6,7 @@ import { AuthService } from "./auth.service";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { TokenService } from "./token.service";
+import { VerificationService } from "./verification.service";
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { TokenService } from "./token.service";
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, JwtStrategy, GoogleStrategy],
+  providers: [AuthService, TokenService, VerificationService, JwtStrategy, GoogleStrategy],
   exports: [TokenService],
 })
 export class AuthModule {}

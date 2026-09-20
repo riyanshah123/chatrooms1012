@@ -5,6 +5,8 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { validateEnv } from "@/common/config/env";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
+import { VerifiedGuard } from "@/common/guards/verified.guard";
+import { MailModule } from "@/infra/mail/mail.module";
 import { PrismaModule } from "@/infra/prisma/prisma.module";
 import { RedisModule } from "@/infra/redis/redis.module";
 import { SearchInfraModule } from "@/infra/search/search.module";
@@ -55,6 +57,7 @@ import { WorkersModule } from "@/modules/workers/workers.module";
 
     PrismaModule,
     RedisModule,
+    MailModule,
     SearchInfraModule,
     AuthModule,
     AnalyticsModule,
@@ -77,6 +80,7 @@ import { WorkersModule } from "@/modules/workers/workers.module";
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: VerifiedGuard },
   ],
 })
 export class AppModule {}

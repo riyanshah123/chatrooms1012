@@ -41,6 +41,7 @@ interface SocketAuth {
   username: string;
   avatarUrl: string | null;
   reputation: number;
+  emailVerified: boolean;
 }
 type AuthedSocket = Socket & { data: { auth: SocketAuth } };
 
@@ -93,7 +94,7 @@ export class ChatGateway
         // immediately at the realtime layer.
         const profile = await this.prisma.anonymousProfile.findUnique({
           where: { id: payload.pid },
-          include: { user: { select: { status: true } } },
+          include: { user: { select: { status: true, emailVerified: true } } },
         });
         if (!profile || profile.user.status !== "ACTIVE") {
           return next(new Error("UNAUTHORIZED"));
@@ -104,6 +105,7 @@ export class ChatGateway
           username: profile.username,
           avatarUrl: profile.avatarUrl,
           reputation: profile.reputation,
+          emailVerified: profile.user.emailVerified,
         };
         next();
       } catch {
@@ -209,6 +211,15 @@ export class ChatGateway
     @ConnectedSocket() socket: AuthedSocket,
     @MessageBody() body: NewMessagePayload,
   ) {
+    // The REST route is behind VerifiedGuard; the socket has to check too or
+    // it becomes the unguarded way in.
+    if (!socket.data.auth.emailVerified) {
+      socket.emit(SocketEvents.ERROR, {
+        code: "EMAIL_NOT_VERIFIED",
+        message: "Confirm your email address first. Check your inbox.",
+      });
+      return;
+    }
     await this.safely(socket, () =>
       this.messages.create(String(body?.roomId ?? ""), socket.data.auth.profileId, {
         type: body?.type === "GIF" ? "GIF" : "TEXT",

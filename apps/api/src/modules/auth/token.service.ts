@@ -9,6 +9,7 @@ export interface AccessPayload {
   sub: string; // userId
   pid: string | null; // profileId — null until onboarding completes
   role: UserRole;
+  ver: boolean; // email confirmed — gates posting, not reading
 }
 
 /**

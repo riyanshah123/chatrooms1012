@@ -13,6 +13,7 @@ export interface SessionProfile {
 interface AuthResponse {
   accessToken: string;
   needsOnboarding: boolean;
+  emailVerified: boolean;
   profile: SessionProfile | null;
 }
 
@@ -25,6 +26,7 @@ interface AuthState {
   accessToken: string | null;
   profile: SessionProfile | null;
   needsOnboarding: boolean;
+  emailVerified: boolean;
 
   login: (email: string, password: string) => Promise<AuthResponse>;
   signup: (email: string, password: string) => Promise<AuthResponse>;
@@ -44,6 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       accessToken: r.accessToken,
       profile: r.profile,
       needsOnboarding: r.needsOnboarding,
+      emailVerified: r.emailVerified,
     });
 
   return {
@@ -51,6 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     accessToken: null,
     profile: null,
     needsOnboarding: false,
+    emailVerified: false,
 
     async login(email, password) {
       const r = await api<AuthResponse>("/auth/login", {
@@ -77,7 +81,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
         await api("/auth/logout", { method: "POST" });
       } finally {
         disconnectSocket();
-        set({ status: "anonymous", accessToken: null, profile: null, needsOnboarding: false });
+        set({
+          status: "anonymous",
+          accessToken: null,
+          profile: null,
+          needsOnboarding: false,
+          emailVerified: false,
+        });
       }
     },
 
@@ -104,7 +114,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
           applySession(r);
           return r;
         } catch {
-          set({ status: "anonymous", accessToken: null, profile: null, needsOnboarding: false });
+          set({
+          status: "anonymous",
+          accessToken: null,
+          profile: null,
+          needsOnboarding: false,
+          emailVerified: false,
+        });
           return null;
         } finally {
           refreshInFlight = null;

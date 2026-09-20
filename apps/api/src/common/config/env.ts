@@ -41,6 +41,10 @@ const envSchema = z.object({
   S3_ACCESS_KEY: z.string().optional(), // unset in prod → IAM role creds
   S3_SECRET_KEY: z.string().optional(),
 
+  /** Resend API key. Without it verification emails are only logged. */
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+
   /** Comma separated emails promoted to ADMIN on seed. */
   ADMIN_EMAILS: z.string().optional(),
 

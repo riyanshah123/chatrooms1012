@@ -13,11 +13,16 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 export const ROLES_KEY = "roles";
 export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
 
+/** Requires a confirmed email address; enforced by VerifiedGuard. */
+export const REQUIRE_VERIFIED_KEY = "requireVerified";
+export const RequireVerified = () => SetMetadata(REQUIRE_VERIFIED_KEY, true);
+
 /** Shape attached to req.user by the JWT strategy (Step 5). */
 export interface AuthUser {
   userId: string;
   profileId: string | null; // null until onboarding picks a username
   role: UserRole;
+  emailVerified: boolean;
 }
 
 /** Injects the authenticated user: `@CurrentUser() user: AuthUser`. */

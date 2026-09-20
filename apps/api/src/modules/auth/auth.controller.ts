@@ -5,6 +5,7 @@ import {
   HttpCode,
   Ip,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -16,6 +17,7 @@ import type { Request, Response } from "express";
 import { CurrentUser, Public, type AuthUser } from "@/common/decorators";
 import { ZodValidationPipe } from "@/common/pipes/zod-validation.pipe";
 import { AuthService, type AuthResult } from "./auth.service";
+import { VerificationService } from "./verification.service";
 import {
   loginSchema,
   signupSchema,
@@ -34,6 +36,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly config: ConfigService,
+    private readonly verification: VerificationService,
   ) {}
 
   // ── Email / password ───────────────────────────────────────────────────
@@ -115,6 +118,30 @@ export class AuthController {
     res.redirect(`${webUrl}/auth/callback${result.needsOnboarding ? "?onboarding=1" : ""}`);
   }
 
+  // ── Email confirmation ─────────────────────────────────────────────────
+
+  /**
+   * Clicked from the email. Confirms, then bounces to the app with a flag so
+   * the UI can say so. The client refreshes its token afterwards to pick up
+   * the new verified state.
+   */
+  @Public()
+  @Get("verify")
+  async verify(@Query("token") token: string, @Res() res: Response): Promise<void> {
+    const ok = await this.verification.confirm(token ?? "");
+    const webUrl = this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    res.redirect(`${webUrl.replace(/\/$/, "")}/?verified=${ok ? "1" : "0"}`);
+  }
+
+  /** Send the confirmation email again. */
+  @Throttle({ default: { limit: 3, ttl: 300_000 } })
+  @Post("verify/resend")
+  @HttpCode(200)
+  async resendVerification(@CurrentUser() user: AuthUser) {
+    await this.verification.resend(user.userId);
+    return { sent: true };
+  }
+
   // ── Session lifecycle ──────────────────────────────────────────────────
 
   /** Cookie-authenticated (the only such route) — see CSRF note in main.ts. */
@@ -174,6 +201,7 @@ export class AuthController {
     return {
       accessToken: result.accessToken,
       needsOnboarding: result.needsOnboarding,
+      emailVerified: result.emailVerified,
       profile: result.profile,
     };
   }

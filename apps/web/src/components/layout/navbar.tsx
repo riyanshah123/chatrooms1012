@@ -5,6 +5,7 @@ import { LogOut, MessageSquare, Plus, Search, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeToggle } from "./theme-toggle";
+import { VerifyBanner } from "./verify-banner";
 import { useAuthStore } from "@/stores/auth";
 import { useUIStore } from "@/stores/ui";
 
@@ -131,6 +132,7 @@ export function Navbar() {
         )}
       </nav>
 
+      <VerifyBanner />
     </header>
   );
 }

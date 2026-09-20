@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { REACTION_EMOJIS } from "@chatrooms/contracts";
-import { CurrentUser, type AuthUser } from "@/common/decorators";
+import { CurrentUser, RequireVerified, type AuthUser } from "@/common/decorators";
 import { ZodValidationPipe } from "@/common/pipes/zod-validation.pipe";
 import { MessagesService } from "./messages.service";
 
@@ -35,6 +35,7 @@ export class MessagesController {
     return this.messages.history(roomId, user.profileId!, cursor);
   }
 
+  @RequireVerified()
   @Post()
   send(
     @CurrentUser() user: AuthUser,

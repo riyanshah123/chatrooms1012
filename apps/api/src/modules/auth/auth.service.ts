@@ -9,6 +9,7 @@ import type { UserRole } from "@chatrooms/contracts";
 import { PrismaService } from "@/infra/prisma/prisma.service";
 import { SearchService } from "@/infra/search/search.service";
 import { TokenService, type AccessPayload } from "./token.service";
+import { VerificationService } from "./verification.service";
 import { isReservedUsername } from "./username.generator";
 
 /**
@@ -33,6 +34,7 @@ export interface AuthResult {
   refreshToken: string; // controller moves this into the httpOnly cookie
   refreshExpiresAt: Date;
   needsOnboarding: boolean; // true → client routes to username picker
+  emailVerified: boolean;
   profile: { id: string; username: string; avatarUrl: string | null } | null;
 }
 
@@ -47,6 +49,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly search: SearchService,
+    private readonly verification: VerificationService,
   ) {}
 
   // ── Email / password ───────────────────────────────────────────────────
@@ -66,7 +69,9 @@ export class AuthService {
         passwordHash: await argon2.hash(password, PASSWORD_HASH_OPTS),
       },
     });
-    return this.buildAuthResult(user.id, null, user.role as UserRole, meta);
+    // Fire and forget: a mail outage must not fail the signup.
+    void this.verification.sendFor(user.id, user.email).catch(() => undefined);
+    return this.buildAuthResult(user.id, null, user.role as UserRole, meta, false);
   }
 
   async login(email: string, password: string, meta: RequestMeta): Promise<AuthResult> {
@@ -87,7 +92,13 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
-    return this.buildAuthResult(user.id, user.profile, user.role as UserRole, meta);
+    return this.buildAuthResult(
+      user.id,
+      user.profile,
+      user.role as UserRole,
+      meta,
+      user.emailVerified,
+    );
   }
 
   // ── Google OAuth (called by the passport strategy callback) ────────────
@@ -124,7 +135,13 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
-    return this.buildAuthResult(user.id, user.profile, user.role as UserRole, meta);
+    return this.buildAuthResult(
+      user.id,
+      user.profile,
+      user.role as UserRole,
+      meta,
+      user.emailVerified,
+    );
   }
 
   // ── Refresh / logout ───────────────────────────────────────────────────
@@ -141,10 +158,12 @@ export class AuthService {
         sub: user.id,
         pid: user.profile?.id ?? null,
         role: user.role as UserRole,
+        ver: user.emailVerified,
       }),
       refreshToken: rotated.token,
       refreshExpiresAt: rotated.expiresAt,
       needsOnboarding: !user.profile,
+      emailVerified: user.emailVerified,
       profile: user.profile
         ? { id: user.profile.id, username: user.profile.username, avatarUrl: user.profile.avatarUrl }
         : null,
@@ -211,14 +230,21 @@ export class AuthService {
     profile: { id: string; username: string; avatarUrl: string | null } | null,
     role: UserRole,
     meta: RequestMeta,
+    emailVerified = false,
   ): Promise<AuthResult> {
-    const payload: AccessPayload = { sub: userId, pid: profile?.id ?? null, role };
+    const payload: AccessPayload = {
+      sub: userId,
+      pid: profile?.id ?? null,
+      role,
+      ver: emailVerified,
+    };
     const refresh = await this.tokens.issueRefreshToken(userId, meta);
     return {
       accessToken: this.tokens.signAccessToken(payload),
       refreshToken: refresh.token,
       refreshExpiresAt: refresh.expiresAt,
       needsOnboarding: !profile,
+      emailVerified,
       profile: profile
         ? { id: profile.id, username: profile.username, avatarUrl: profile.avatarUrl }
         : null,

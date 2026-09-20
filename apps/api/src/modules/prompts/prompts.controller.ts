@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { CurrentUser, Public, type AuthUser } from "@/common/decorators";
+import { CurrentUser, Public, RequireVerified, type AuthUser } from "@/common/decorators";
 import { ZodValidationPipe } from "@/common/pipes/zod-validation.pipe";
 import {
   createPromptSchema,
@@ -48,6 +48,7 @@ export class PromptsController {
   }
 
   /** Creation is throttled hard — prompt spam pollutes the whole feed. */
+  @RequireVerified()
   @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @Post()
   create(
